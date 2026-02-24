@@ -40,7 +40,7 @@ output/                    # Generated outputs (gitignored)
 
 1. Install dependencies:
    ```bash
-   pip install -e .
+   pip install -r requirements.txt
    ```
 
 2. Configure environment:
