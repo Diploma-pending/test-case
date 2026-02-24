@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "skills": {
+    "Deep Agents Core": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "276760e2d6882b13ef88d59327cab22e520770e8801639dd2a5b2cedcb2ca683"
+    },
+    "Deep Agents Memory & Filesystem": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "f908be6afd484ede7c83ab9a0858496962b6df259c943b10974a199026ffa4b9"
+    },
+    "Deep Agents Orchestration": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "9e59ff20b12162bd3b67f13672f3b097fc4dc2d4b0e9d44b044304af98e05037"
+    },
+    "Framework Selection": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "85f685c53f73fab90e0bb9ce9f3396634480e14df5ac31fb3d34bb42ee0bb2b9"
+    },
+    "LangChain Dependencies": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "12067d1bf027c37019472e5e7a840c9f5f7efed10bd22f825038341b89248918"
+    },
+    "LangChain Structured Output & HITL": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "f280de89214cbb02afd447de43576f31f14a6a800d1267730ee004a9fefb5ba8"
+    },
+    "LangGraph Fundamentals": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "cbeb135d95af2bb824efb8603b065971eb5d4dc141ee0c4054328b4d1c60ff71"
+    },
+    "LangGraph Persistence & Memory": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "3798ec3d16168dff3a1a8374eca8a0e32e526340ea1662159480a21fb6cdb04a"
+    },
+    "LangSmith Datasets": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "4e9ec846a77c378c5b8b602a5f6c5018a927a33fb94c9ddbeb8c010f399f16ea"
+    },
+    "LangSmith Traces": {
+      "source": "langchain-ai/langchain-skills",
+      "sourceType": "github",
+      "computedHash": "b2a0eca51a6c1ccef298bc257ebbe1c1eef9d6d47fd3a50dc96dba7e38f3f482"
+    }
+  }
+}
