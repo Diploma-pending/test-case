@@ -1,8 +1,50 @@
 # Python coding standards for modern backends
 
+> Python 3.11+ · Black · Ruff · mypy/Pyright · pytest · uv
+
 **This document defines the engineering standards for Python 3.11+ backend development.** Every rule prioritizes maintainability, type safety, and testability through explicit dependency injection and clean architecture. The standards progress from syntax-level rules to system-level architecture patterns, each with rationale and concrete code examples. Adopt these incrementally — start with formatting and typing enforcement, then layer in architectural patterns as complexity warrants.
 
 ---
+
+## Table of Contents
+
+**[Part I — Code Style](#part-i--code-style)**
+- [1. Syntax and formatting rules](#1-syntax-and-formatting-rules)
+- [2. Typing rules](#2-typing-rules)
+
+**[Part II — Architecture](#part-ii--architecture)**
+- [3. Dependency injection rules](#3-dependency-injection-rules)
+- [4. Architecture patterns](#4-architecture-patterns)
+
+**[Part III — Quality & Operations](#part-iii--quality--operations)**
+- [5. Testing strategy](#5-testing-strategy)
+- [6. Async best practices](#6-async-best-practices)
+- [7. Error handling](#7-error-handling)
+- [8. Logging standards](#8-logging-standards)
+
+**[Part IV — Project & Scaling](#part-iv--project--scaling)**
+- [9. Project structure](#9-project-structure)
+- [10. Scalability principles](#10-scalability-principles)
+
+[Conclusion](#conclusion)
+
+---
+
+## Toolchain at a glance
+
+| Tool | Purpose | Config |
+|---|---|---|
+| **Black** | Auto-formatter (88-char line length) | `pyproject.toml → [tool.black]` |
+| **Ruff** | Linter — replaces flake8, isort, pydocstyle | `pyproject.toml → [tool.ruff]` |
+| **mypy / Pyright** | Static type checker | `pyproject.toml → [tool.mypy]` |
+| **pytest** | Test runner + fixtures | `pyproject.toml → [tool.pytest.ini_options]` |
+| **uv** | Package & virtualenv manager | `pyproject.toml` |
+| **Alembic** | Versioned DB schema migrations | `alembic.ini` |
+| **structlog** | Structured / JSON logging | runtime config |
+
+---
+
+## Part I — Code Style
 
 ## 1. Syntax and formatting rules
 
@@ -386,6 +428,8 @@ reportMissingTypeStubs = "warning"
 
 ---
 
+## Part II — Architecture
+
 ## 3. Dependency injection rules
 
 ### Constructor injection is the default
@@ -684,6 +728,8 @@ def publish_allocated(event: OrderAllocated, publish: Callable) -> None:
 ```
 
 ---
+
+## Part III — Quality & Operations
 
 ## 5. Testing strategy
 
@@ -1168,6 +1214,8 @@ LOGGING_CONFIG = {
 ```
 
 ---
+
+## Part IV — Project & Scaling
 
 ## 9. Project structure
 
