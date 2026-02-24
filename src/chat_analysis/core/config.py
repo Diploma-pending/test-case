@@ -9,7 +9,8 @@ load_dotenv()
 
 # --- Paths ---
 
-BASE_DIR = Path(__file__).parent
+# Project root is 3 levels up from src/chat_analysis/core/
+BASE_DIR = Path(__file__).parents[3]
 CONTEXT_DIR = BASE_DIR / "context"
 OUTPUT_DIR = BASE_DIR / "output"
 

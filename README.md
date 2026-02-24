@@ -16,21 +16,31 @@ Built with LangChain LCEL chains and Pydantic structured output (`with_structure
 ## Project Structure
 
 ```
-├── models.py         # Pydantic data models (shared)
-├── config.py         # LLM factory, paths, generation params
-├── security.py       # Input sanitization, path validation
-├── prompts.py        # Prompt templates
-├── generate.py       # Script 1: generate chat dataset
-├── analyze.py        # Script 2: analyze chats
-├── context/          # Domain-specific .md context files
-├── output/           # Generated outputs (gitignored)
+src/chat_analysis/
+├── models.py              # Shared enums and ChatMessage
+├── core/
+│   ├── config.py          # LLM factory, paths, generation params
+│   └── security.py        # Input sanitization, path validation
+├── generation/
+│   ├── models.py          # Generation-specific Pydantic models
+│   ├── prompts.py         # Generation and validation prompt templates
+│   └── service.py         # Generation pipeline logic
+└── analysis/
+    ├── models.py          # Analysis-specific Pydantic models
+    ├── prompts.py         # Analysis and meta-validation prompt templates
+    └── service.py         # Analysis pipeline logic
+generate.py                # Entry point: generate chat dataset
+analyze.py                 # Entry point: analyze chats
+context/                   # Domain-specific .md context files
+tests/                     # Test suite
+output/                    # Generated outputs (gitignored)
 ```
 
 ## Setup
 
 1. Install dependencies:
    ```bash
-   pip install -r requirements.txt
+   pip install -e .
    ```
 
 2. Configure environment:

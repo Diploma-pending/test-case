@@ -3,7 +3,7 @@
 import re
 from pathlib import Path
 
-from config import CONTEXT_DIR
+from chat_analysis.core.config import CONTEXT_DIR
 
 
 # Patterns commonly used in prompt injection attempts
