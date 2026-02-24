@@ -1,5 +1,25 @@
+# Output
 output/
+
+# Secrets
 .env
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyd
+build/
+dist/
+*.egg-info/
+
+# Virtual environment
 .venv/
+
+# IDE
+.idea/
+
+# OS
+.DS_Store
+
+# Logs
+*.log

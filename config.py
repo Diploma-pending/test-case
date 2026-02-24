@@ -23,7 +23,7 @@ MAX_RETRIES = 3  # Max retries if validation fails
 
 # --- LLM configuration ---
 
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")  # "openai" or "anthropic"
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")  # "openai", "anthropic", or "google"
 LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
 LLM_TEMPERATURE = 0
 
@@ -45,5 +45,15 @@ def get_llm():
             model=LLM_MODEL,
             temperature=LLM_TEMPERATURE,
         )
+    elif LLM_PROVIDER == "google":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        return ChatGoogleGenerativeAI(
+            model=LLM_MODEL,
+            temperature=LLM_TEMPERATURE,
+        )
     else:
-        raise ValueError(f"Unsupported LLM_PROVIDER: {LLM_PROVIDER}. Use 'openai' or 'anthropic'.")
+        raise ValueError(
+            f"Unsupported LLM_PROVIDER: {LLM_PROVIDER}. "
+            "Use 'openai', 'anthropic', or 'google'."
+        )

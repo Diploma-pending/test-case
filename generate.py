@@ -65,6 +65,7 @@ def generate_single_chat(
     # Step 1: Generate
     generate_prompt = ChatPromptTemplate.from_messages([
         ("system", GENERATE_SYSTEM_TEMPLATE),
+        ("human", "Generate the support chat conversation for this scenario."),
     ])
 
     generate_chain = generate_prompt | llm.with_structured_output(GeneratedChat)
@@ -80,6 +81,7 @@ def generate_single_chat(
     # Step 2: Validate prompt
     validate_prompt = ChatPromptTemplate.from_messages([
         ("system", VALIDATE_SYSTEM_TEMPLATE),
+        ("human", "Validate the chat above and return the validation result."),
     ])
 
     validate_chain = validate_prompt | llm.with_structured_output(ChatValidationResult)

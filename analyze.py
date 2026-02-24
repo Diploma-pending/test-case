@@ -38,6 +38,7 @@ def analyze_single_chat(chat: dict, llm) -> ChatAnalysis:
     # Step 1: Analyze
     analyze_prompt = ChatPromptTemplate.from_messages([
         ("system", ANALYZE_SYSTEM_TEMPLATE),
+        ("human", "Analyze the chat above and return the analysis result."),
     ])
 
     analyze_chain = analyze_prompt | llm.with_structured_output(ChatAnalysis)
@@ -53,6 +54,7 @@ def analyze_single_chat(chat: dict, llm) -> ChatAnalysis:
     # Step 2: Validate and correct
     validate_prompt = ChatPromptTemplate.from_messages([
         ("system", ANALYZE_VALIDATE_TEMPLATE),
+        ("human", "Validate and correct the analysis above if needed."),
     ])
 
     validate_chain = validate_prompt | llm.with_structured_output(AnalysisValidationResult)
