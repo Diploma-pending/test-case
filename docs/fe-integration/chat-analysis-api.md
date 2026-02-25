@@ -10,17 +10,34 @@
 
 The API exposes four endpoints organized around two resources: **groups** and **chats**.
 
-A **group** is a set of AI-generated support chats built from a topic and a `.md` context file.
+A **group** is a set of AI-generated support chats built from a topic and a context source.
 A **chat** is a single generated conversation within a group.
+
+Context can be provided as:
+- a `.md` file upload (`context_file`)
+- a website URL (`website_url`) — the server fetches the page and uses an LLM to extract structured context
+- **both** — the file content and the gathered website context are merged
 
 ### Typical integration flow
 
+**File-only (existing flow):**
 ```
-POST /groups                    → get group_id, status = "generating"
-    poll GET /groups/{id}/chats → wait until status = "generated"
-POST /groups/{id}/analyze       → status flips to "analyzing"
-    poll GET /groups/{id}/chats → chats flip to "analyzed" one by one
-GET /groups/{id}/chats/{chatId} → full detail when user clicks a chat
+POST /groups (context_file)         → status = "generating"
+    poll GET /groups/{id}/chats     → wait until status = "generated"
+POST /groups/{id}/analyze           → status flips to "analyzing"
+    poll GET /groups/{id}/chats     → chats flip to "analyzed" one by one
+GET /groups/{id}/chats/{chatId}     → full detail when user clicks a chat
+```
+
+**Website URL flow:**
+```
+POST /groups (website_url)          → status = "gathering_context"
+    poll GET /groups/{id}/chats     → wait until status leaves "gathering_context"
+                                      → "generating" (success) or "context_gathering_failed" (error)
+    poll GET /groups/{id}/chats     → wait until status = "generated"
+POST /groups/{id}/analyze           → status flips to "analyzing"
+    poll GET /groups/{id}/chats     → chats flip to "analyzed" one by one
+GET /groups/{id}/chats/{chatId}     → full detail when user clicks a chat
 ```
 
 ---
@@ -31,6 +48,8 @@ GET /groups/{id}/chats/{chatId} → full detail when user clicks a chat
 
 | Value | Meaning |
 |---|---|
+| `gathering_context` | Fetching website and generating context document (background task running) |
+| `context_gathering_failed` | Website unreachable, extraction empty, or LLM error — terminal, no chats will be created |
 | `generating` | Chats are being created by the AI (background task running) |
 | `generated` | All chats created — ready to trigger analysis |
 | `generation_failed` | Background generation task crashed |
@@ -57,7 +76,7 @@ GET /groups/{id}/chats/{chatId} → full detail when user clicks a chat
 
 ### `POST /groups`
 
-> **Purpose**: Upload a topic and context file; the server immediately returns a `group_id` and begins generating chats in the background.
+> **Purpose**: Provide a topic and a context source (file, URL, or both); the server immediately returns a `group_id` and begins processing in the background.
 
 #### Request
 
@@ -66,10 +85,13 @@ GET /groups/{id}/chats/{chatId} → full detail when user clicks a chat
 | Field | Type | Required | Default | Validation |
 |---|---|---|---|---|
 | `topic` | `string` | Yes | — | Non-empty string, used as the domain label in AI prompts |
-| `context_file` | `file` | Yes | — | Must be a `.md` file, max size 1 MB |
+| `context_file` | `file` | Conditional | — | Must be a `.md` file, max size 1 MB. Required if `website_url` is not provided |
+| `website_url` | `string` | Conditional | — | Must be a valid `http` or `https` URL with a hostname. Required if `context_file` is not provided |
 | `num_chats` | `integer` | No | `8` | Positive integer — number of chats to generate |
 
-**Example (fetch):**
+At least one of `context_file` or `website_url` must be provided. Both can be provided simultaneously.
+
+**Example — file only (fetch):**
 ```js
 const form = new FormData();
 form.append("topic", "e-commerce platform");
@@ -82,8 +104,45 @@ const res = await fetch("http://localhost:8000/groups", {
 });
 ```
 
+**Example — website URL only (fetch):**
+```js
+const form = new FormData();
+form.append("topic", "e-commerce platform");
+form.append("website_url", "https://example-shop.com");
+form.append("num_chats", "4");
+
+const res = await fetch("http://localhost:8000/groups", {
+  method: "POST",
+  body: form,
+});
+```
+
+**Example — both file and URL (fetch):**
+```js
+const form = new FormData();
+form.append("topic", "e-commerce platform");
+form.append("context_file", mdFileBlob, "context.md");
+form.append("website_url", "https://example-shop.com");
+form.append("num_chats", "4");
+
+const res = await fetch("http://localhost:8000/groups", {
+  method: "POST",
+  body: form,
+});
+```
+
 #### Success response — `202 Accepted`
 
+When `website_url` is provided (status is `"gathering_context"`):
+```json
+{
+  "group_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "status": "gathering_context",
+  "num_chats": 4
+}
+```
+
+When only `context_file` is provided (status is `"generating"`):
 ```json
 {
   "group_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
@@ -95,16 +154,20 @@ const res = await fetch("http://localhost:8000/groups", {
 | Field | Type | Description |
 |---|---|---|
 | `group_id` | `string (UUID)` | Store this — used in all subsequent requests |
-| `status` | `string` | Always `"generating"` on creation |
+| `status` | `string` | `"gathering_context"` if `website_url` was provided, otherwise `"generating"` |
 | `num_chats` | `integer` | Number of chats that will be created |
 
 #### Error responses
 
 | Status | Condition | Response body |
 |---|---|---|
+| `422` | Neither `context_file` nor `website_url` provided | `{ "detail": "Provide at least one of: context_file (.md) or website_url" }` |
 | `422` | `context_file` is not a `.md` file | `{ "detail": "context_file must be a .md file" }` |
 | `422` | `context_file` exceeds 1 MB | `{ "detail": "context_file must be ≤ 1 MB" }` |
-| `422` | Missing required field (`topic` or `context_file`) | `{ "detail": [{ "loc": [...], "msg": "Field required", "type": "missing" }] }` |
+| `422` | `website_url` has an invalid scheme or missing hostname | `{ "detail": "website_url must be a valid http or https URL with a hostname" }` |
+| `422` | Missing `topic` | `{ "detail": [{ "loc": [...], "msg": "Field required", "type": "missing" }] }` |
+
+> **Note on `website_url` failures**: Format errors (bad scheme, no hostname) are caught synchronously and return 422 immediately. Runtime failures (unreachable host, HTTP error, DNS resolution failure, private IP blocked) happen in the background and set the group status to `"context_gathering_failed"` — poll `GET /groups/{id}/chats` to detect these.
 
 ---
 
@@ -143,7 +206,7 @@ const res = await fetch(`http://localhost:8000/groups/${groupId}/analyze`, {
 | Status | Condition | Response body |
 |---|---|---|
 | `404` | `group_id` does not exist | `{ "detail": "Group not found" }` |
-| `409` | Group status is not `"generated"` (e.g. still generating, already analyzing, already completed) | `{ "detail": "Group is not ready for analysis. Current status: generating" }` |
+| `409` | Group status is not `"generated"` (e.g. still gathering context, still generating, already analyzing, already completed) | `{ "detail": "Group is not ready for analysis. Current status: generating" }` |
 
 > **Important**: Always check that the group status is `"generated"` before calling this endpoint. Calling it while `status = "analyzing"` or `"completed"` returns 409.
 
@@ -174,6 +237,8 @@ const data = await res.json();
   "status": "analyzing",
   "num_chats": 4,
   "created_at": "2024-01-15T10:30:00.123456+00:00",
+  "website_url": "https://example-shop.com",
+  "context_gathering_error": null,
   "chats": [
     {
       "chat_id": "chat_001",
@@ -204,6 +269,20 @@ const data = await res.json();
 }
 ```
 
+**Example — context gathering failed:**
+```json
+{
+  "group_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "topic": "e-commerce platform",
+  "status": "context_gathering_failed",
+  "num_chats": 4,
+  "created_at": "2024-01-15T10:30:00.123456+00:00",
+  "website_url": "https://unreachable-site.example",
+  "context_gathering_error": "Request timed out fetching 'https://unreachable-site.example'",
+  "chats": []
+}
+```
+
 **Response fields:**
 
 | Field | Type | Description |
@@ -213,7 +292,9 @@ const data = await res.json();
 | `status` | `string` | Current group status (see Group status lifecycle above) |
 | `num_chats` | `integer` | Total number of chats in this group |
 | `created_at` | `string (ISO 8601)` | UTC timestamp of group creation |
-| `chats` | `array` | List of chat summaries (may be empty while first chat is being generated) |
+| `website_url` | `string \| null` | The URL submitted at creation, or `null` if no URL was provided |
+| `context_gathering_error` | `string \| null` | Human-readable error message if status is `"context_gathering_failed"`, otherwise `null` |
+| `chats` | `array` | List of chat summaries (empty while context is being gathered or before first chat is created) |
 | `chats[].chat_id` | `string` | e.g. `"chat_001"`, `"chat_002"` — sequential |
 | `chats[].case_type` | `string` | One of: `simple_resolved`, `complex_resolved`, `escalated`, `unresolved` |
 | `chats[].status` | `string` | Per-chat status (see Per-chat status lifecycle above) |
@@ -237,14 +318,19 @@ const data = await res.json();
 #### Polling guidance
 
 ```js
-// Poll every 3 seconds until all chats are done
+// Poll every 3 seconds until reaching a terminal state
 async function pollUntilComplete(groupId) {
   while (true) {
     const res = await fetch(`http://localhost:8000/groups/${groupId}/chats`);
     const data = await res.json();
 
-    // Check group-level terminal states
-    if (["completed", "generation_failed", "analysis_failed"].includes(data.status)) {
+    // Terminal group states
+    if ([
+      "completed",
+      "context_gathering_failed",
+      "generation_failed",
+      "analysis_failed",
+    ].includes(data.status)) {
       return data;
     }
 
@@ -368,7 +454,10 @@ const data = await res.json();
 
 ## Edge cases
 
-- **`chats` array starts empty** during generation. The array grows as each chat is created. Always compare `chats.length` to `num_chats` to know total progress.
+- **`chats` array starts empty** during generation (and also during context gathering when `website_url` is used). The array grows as each chat is created. Always compare `chats.length` to `num_chats` to know total progress.
+- **`context_gathering_failed` is a terminal state** — no chats will ever be created for this group. Display `context_gathering_error` to the user and prompt them to create a new group.
+- **`website_url` runtime errors are async** — a URL that passes the format check on `POST /groups` can still fail later (DNS failure, timeout, HTTP error, private IP). Only polling `GET /groups/{id}/chats` will reveal this via `status = "context_gathering_failed"`.
+- **Both `context_file` and `website_url` accepted** — when both are provided the file content appears first in the merged context, followed by a `---` separator and the website-gathered context.
 - **Individual chat `failed`** does not fail the whole group. A group can reach `completed` even if some chats have `status = "failed"`.
 - **`scenario.domain` is always `"payment_issues"`** for custom-topic groups — this is a placeholder and should be ignored by the FE. The actual topic is in the group's `topic` field.
 - **Analysis context** — the `scenario.has_hidden_dissatisfaction`, `has_tonal_errors`, `has_logical_errors` flags describe what the AI was *asked* to generate. Use them to cross-reference with the analysis results.

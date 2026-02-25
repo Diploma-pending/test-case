@@ -3,6 +3,8 @@
 import asyncio
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
 
@@ -14,6 +16,7 @@ from chat_analysis.api.models import (
     GroupChatsResponse,
     GroupCreateResponse,
 )
+from chat_analysis.context_gathering.service import ContextGatheringError, gather_context
 from chat_analysis.core.config import get_llm
 from chat_analysis.core.security import sanitize_text
 from chat_analysis.generation.models import CaseType, ChatScenario
@@ -45,6 +48,25 @@ def build_group_scenarios(num_chats: int) -> list[ChatScenario]:
             )
         )
     return scenarios
+
+
+def _combine_contexts(file_context: str, website_context: str, website_url: str) -> str:
+    """Merge uploaded file context with website-gathered context.
+
+    If both are present: file context first, separator, then website context.
+    If only one is non-empty: return that one.
+    """
+    has_file = bool(file_context and file_context.strip())
+    has_web = bool(website_context and website_context.strip())
+
+    if has_file and has_web:
+        return (
+            f"{file_context}\n\n---\n\n"
+            f"## Context gathered from {website_url}\n\n{website_context}"
+        )
+    if has_file:
+        return file_context
+    return website_context
 
 
 def _generate_group_sync(group_id: str, topic: str, context_str: str, num_chats: int) -> None:
@@ -98,6 +120,36 @@ def _generate_group_sync(group_id: str, topic: str, context_str: str, num_chats:
         raise
 
 
+def _gather_and_generate_sync(
+    group_id: str,
+    topic: str,
+    file_context: str,
+    website_url: str,
+    num_chats: int,
+) -> None:
+    """Gather context from website, merge with file context, then generate chats."""
+    llm = get_llm()
+
+    try:
+        gathered = gather_context(website_url, llm)
+        website_context = gathered.context_document
+    except ContextGatheringError as exc:
+        group_data = storage.load_group(group_id)
+        group_data["status"] = "context_gathering_failed"
+        group_data["context_gathering_error"] = str(exc)
+        storage.save_group(group_id, group_data)
+        return
+
+    merged = _combine_contexts(file_context, website_context, website_url)
+    storage.save_context(group_id, merged)
+
+    group_data = storage.load_group(group_id)
+    group_data["status"] = "generating"
+    storage.save_group(group_id, group_data)
+
+    _generate_group_sync(group_id, topic, merged, num_chats)
+
+
 def _analyze_group_sync(group_id: str) -> None:
     """Synchronous analysis task — run via asyncio.to_thread."""
     llm = get_llm()
@@ -135,6 +187,18 @@ async def _run_generate_group(group_id: str, topic: str, context_str: str, num_c
     await asyncio.to_thread(_generate_group_sync, group_id, topic, context_str, num_chats)
 
 
+async def _run_gather_and_generate_group(
+    group_id: str,
+    topic: str,
+    file_context: str,
+    website_url: str,
+    num_chats: int,
+) -> None:
+    await asyncio.to_thread(
+        _gather_and_generate_sync, group_id, topic, file_context, website_url, num_chats
+    )
+
+
 async def _run_analyze_group(group_id: str) -> None:
     await asyncio.to_thread(_analyze_group_sync, group_id)
 
@@ -143,33 +207,66 @@ async def _run_analyze_group(group_id: str) -> None:
 async def create_group(
     background_tasks: BackgroundTasks,
     topic: str = Form(...),
-    context_file: UploadFile = File(...),
+    context_file: Optional[UploadFile] = File(None),
+    website_url: Optional[str] = Form(None),
     num_chats: int = Form(default=8),
 ) -> GroupCreateResponse:
-    """Create a new chat group from a topic and context file, then generate chats in the background."""
-    if not context_file.filename or not context_file.filename.endswith(".md"):
-        raise HTTPException(status_code=422, detail="context_file must be a .md file")
+    """Create a new chat group from a topic and context source, then generate chats in the background.
 
-    content = await context_file.read()
-    if len(content) > MAX_CONTEXT_SIZE:
-        raise HTTPException(status_code=422, detail="context_file must be ≤ 1 MB")
+    Provide either context_file (.md), website_url, or both.
+    """
+    if context_file is None and website_url is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Provide at least one of: context_file (.md) or website_url",
+        )
 
-    context_str = sanitize_text(content.decode("utf-8", errors="replace"))
+    # Eager URL format validation before creating the group
+    if website_url is not None:
+        parsed = urlparse(website_url)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname:
+            raise HTTPException(
+                status_code=422,
+                detail="website_url must be a valid http or https URL with a hostname",
+            )
+
+    file_context = ""
+    if context_file is not None:
+        if not context_file.filename or not context_file.filename.endswith(".md"):
+            raise HTTPException(status_code=422, detail="context_file must be a .md file")
+        content = await context_file.read()
+        if len(content) > MAX_CONTEXT_SIZE:
+            raise HTTPException(status_code=422, detail="context_file must be ≤ 1 MB")
+        file_context = sanitize_text(content.decode("utf-8", errors="replace"))
 
     group_id = str(uuid.uuid4())
+    initial_status = "gathering_context" if website_url else "generating"
+
     group_data = {
         "group_id": group_id,
         "topic": topic,
-        "status": "generating",
+        "status": initial_status,
         "num_chats": num_chats,
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "website_url": website_url,
+        "context_gathering_error": None,
     }
     storage.save_group(group_id, group_data)
-    storage.save_context(group_id, context_str)
 
-    background_tasks.add_task(_run_generate_group, group_id, topic, context_str, num_chats)
+    if website_url:
+        background_tasks.add_task(
+            _run_gather_and_generate_group,
+            group_id,
+            topic,
+            file_context,
+            website_url,
+            num_chats,
+        )
+    else:
+        storage.save_context(group_id, file_context)
+        background_tasks.add_task(_run_generate_group, group_id, topic, file_context, num_chats)
 
-    return GroupCreateResponse(group_id=group_id, status="generating", num_chats=num_chats)
+    return GroupCreateResponse(group_id=group_id, status=initial_status, num_chats=num_chats)
 
 
 @router.post("/{group_id}/analyze", status_code=202, response_model=GroupAnalyzeResponse)
@@ -226,4 +323,6 @@ async def get_group_chats(group_id: str) -> GroupChatsResponse:
         num_chats=group_data["num_chats"],
         created_at=group_data["created_at"],
         chats=chat_summaries,
+        website_url=group_data.get("website_url"),
+        context_gathering_error=group_data.get("context_gathering_error"),
     )

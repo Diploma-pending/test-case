@@ -30,6 +30,8 @@ class GroupChatsResponse(BaseModel):
     num_chats: int
     created_at: str
     chats: list[ChatSummary]
+    website_url: Optional[str] = None
+    context_gathering_error: Optional[str] = None
 
 
 class ChatDetailResponse(BaseModel):
