@@ -39,6 +39,7 @@ The system has two sequential pipelines, each using a **two-step LangChain LCEL 
 1. `build_scenario_matrix()` creates 20 deterministic scenarios (5 domains × 4 case types), assigning flags (hidden dissatisfaction, tonal errors, logical errors) via modular arithmetic (`idx % 4`).
 2. Per scenario: `generate_chain = prompt | llm.with_structured_output(GeneratedChat)` generates a chat, then `validate_chain = prompt | llm.with_structured_output(ChatValidationResult)` validates it. Retries up to `MAX_RETRIES` (3) times on failure.
 3. Domain-specific context is loaded from `context/<domain>.md` via `security.load_context_safely()`, which also sanitizes prompt injection patterns.
+4. Brand-specific support context is loaded from `domains/<brand>.md` to ground generated chats in realistic product details, policies, and edge cases.
 
 ### Analysis pipeline (`analyze.py` → `src/chat_analysis/analysis/`)
 
@@ -63,6 +64,31 @@ src/chat_analysis/
     ├── prompts.py         # ANALYZE_SYSTEM_TEMPLATE, ANALYZE_VALIDATE_TEMPLATE
     └── service.py         # analyze_single_chat(), main()
 ```
+
+## Domain Context Files
+
+The `domains/` directory contains brand-specific support context documents used to make generated chats realistic. Each file covers:
+- Business overview, pricing tiers, and key features
+- Support domain context per category (payment, technical, account, tariff, refunds)
+- Support policies, SLAs, and self-service options
+- Edge cases and emotionally charged scenarios
+- Agent pitfall areas (common mistakes to model in problematic chats)
+
+Available brand contexts:
+
+| File | Brand |
+|---|---|
+| `domains/brighterly.md` | Brighterly — online math tutoring for kids |
+| `domains/dressly.md` | Dressly — fashion/clothing subscription |
+| `domains/howly.md` | Howly — on-demand expert Q&A platform |
+| `domains/liven.md` | Liven — CBT-based mental health & well-being app |
+| `domains/maxbeauty.md` | MaxBeauty — beauty/cosmetics e-commerce |
+| `domains/pawchamp.md` | PawChamp — dog training & care platform |
+| `domains/relatio.md` | Relatio — relationship coaching app |
+| `domains/riseguide.md` | RiseGuide — personal development & coaching |
+| `domains/storyby.md` | Storyby — personalized children's storybooks |
+
+These files are injected into generation prompts alongside the support-category context from `context/<domain>.md`.
 
 ## Configuration
 
