@@ -16,6 +16,7 @@ OUTPUT_DIR = BASE_DIR / "output"
 
 GENERATED_CHATS_PATH = OUTPUT_DIR / "generated_chats.json"
 ANALYSIS_RESULTS_PATH = OUTPUT_DIR / "analysis_results.json"
+GROUPS_DIR = OUTPUT_DIR / "groups"
 
 # --- Generation parameters ---
 

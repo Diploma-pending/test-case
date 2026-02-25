@@ -58,13 +58,21 @@ def generate_single_chat(
     scenario: ChatScenario,
     chat_id: str,
     llm,
+    context_override: str | None = None,
+    topic_override: str | None = None,
 ) -> GeneratedChat:
     """Generate a single chat using a two-step LLM chain: generate → validate.
 
     Retries up to MAX_RETRIES times if validation fails.
+
+    Args:
+        context_override: If provided, used instead of loading context from disk.
+        topic_override: If provided, used as the domain label in prompts instead of
+            scenario.domain.value.
     """
-    domain_context = load_context_safely(scenario.domain.value)
+    domain_context = context_override if context_override is not None else load_context_safely(scenario.domain.value)
     special_requirements = build_special_requirements(scenario)
+    domain_label = topic_override if topic_override is not None else scenario.domain.value
 
     # Step 1: Generate
     generate_prompt = ChatPromptTemplate.from_messages([
@@ -75,7 +83,7 @@ def generate_single_chat(
     generate_chain = generate_prompt | llm.with_structured_output(GeneratedChat)
 
     generate_params = {
-        "domain": scenario.domain.value,
+        "domain": domain_label,
         "case_type": scenario.case_type.value,
         "chat_id": chat_id,
         "domain_context": domain_context if domain_context else "No additional context available.",
@@ -102,7 +110,7 @@ def generate_single_chat(
         # Validate
         chat_json = chat.model_dump_json(indent=2)
         validation = validate_chain.invoke({
-            "domain": scenario.domain.value,
+            "domain": domain_label,
             "case_type": scenario.case_type.value,
             "has_hidden_dissatisfaction": str(scenario.has_hidden_dissatisfaction),
             "has_tonal_errors": str(scenario.has_tonal_errors),
