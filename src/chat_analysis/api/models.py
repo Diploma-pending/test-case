@@ -34,6 +34,16 @@ class GroupChatsResponse(BaseModel):
     context_gathering_error: Optional[str] = None
 
 
+class GroupSummary(BaseModel):
+    group_id: str
+    topic: str
+    status: str
+    num_chats: int
+    created_at: str
+    website_url: Optional[str] = None
+    context_gathering_error: Optional[str] = None
+
+
 class ChatDetailResponse(BaseModel):
     chat_id: str
     case_type: str

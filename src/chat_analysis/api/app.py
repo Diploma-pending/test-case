@@ -3,6 +3,9 @@
 from fastapi import FastAPI
 
 from chat_analysis.api.routers import chats, groups
+from chat_analysis.core.logging import setup_logging
+
+setup_logging()
 
 
 def create_app() -> FastAPI:

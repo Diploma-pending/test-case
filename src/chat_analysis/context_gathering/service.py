@@ -1,5 +1,6 @@
 """Context gathering service: fetch website HTML, extract text, generate structured context via LLM."""
 
+import logging
 import socket
 from ipaddress import ip_address
 from urllib.parse import urlparse
@@ -12,6 +13,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from chat_analysis.context_gathering.models import GatheredContext
 from chat_analysis.context_gathering.prompts import GATHER_CONTEXT_SYSTEM_TEMPLATE
 from chat_analysis.core.security import sanitize_text
+
+logger = logging.getLogger(__name__)
 
 _MAX_DOWNLOAD_BYTES = 2 * 1024 * 1024  # 2 MB
 _MAX_TEXT_CHARS = 12_000
@@ -114,17 +117,26 @@ def gather_context(url: str, llm) -> GatheredContext:
     Raises:
         ContextGatheringError: If any step fails.
     """
+    logger.info("Validating URL: %s", url)
     validated_url = validate_url(url)
+
+    logger.info("Fetching HTML from %s", validated_url)
     html = fetch_html(validated_url)
+    logger.debug("Fetched %d bytes of HTML", len(html))
+
     raw_text = extract_text(html)
     sanitized_text = sanitize_text(raw_text)
+    logger.info("Extracted %d chars of text", len(sanitized_text))
 
+    logger.info("Generating context document via LLM")
     prompt = ChatPromptTemplate.from_messages([
         ("system", GATHER_CONTEXT_SYSTEM_TEMPLATE),
+        ("human", "Generate the context document based on the website text above."),
     ])
     chain = prompt | llm | StrOutputParser()
 
     context_document: str = chain.invoke({"website_text": sanitized_text})
+    logger.info("Context document generated (%d chars)", len(context_document))
 
     return GatheredContext(
         url=validated_url,

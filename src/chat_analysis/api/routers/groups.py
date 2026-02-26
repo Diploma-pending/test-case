@@ -1,12 +1,16 @@
 """Group endpoints: create, trigger analysis, list chats."""
 
 import asyncio
+import logging
+import time
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Union
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+
+logger = logging.getLogger(__name__)
 
 from chat_analysis.analysis.service import analyze_single_chat
 from chat_analysis.api import storage
@@ -15,6 +19,7 @@ from chat_analysis.api.models import (
     GroupAnalyzeResponse,
     GroupChatsResponse,
     GroupCreateResponse,
+    GroupSummary,
 )
 from chat_analysis.context_gathering.service import ContextGatheringError, gather_context
 from chat_analysis.core.config import get_llm
@@ -29,19 +34,18 @@ MAX_CONTEXT_SIZE = 1 * 1024 * 1024  # 1 MB
 
 
 def build_group_scenarios(num_chats: int) -> list[ChatScenario]:
-    """Build a list of scenarios for a custom group by cycling through case types.
+    """Build a list of scenarios for a custom group by cycling through domains and case types.
 
     Uses the same modular arithmetic for flags as build_scenario_matrix().
-    Domain is set to PAYMENT_ISSUES as a placeholder (overridden by context_override).
     """
+    domains = list(ChatDomain)
     case_types = list(CaseType)
     scenarios = []
     for i in range(num_chats):
-        case_type = case_types[i % len(case_types)]
         scenarios.append(
             ChatScenario(
-                domain=ChatDomain.PAYMENT_ISSUES,
-                case_type=case_type,
+                domain=domains[i % len(domains)],
+                case_type=case_types[i % len(case_types)],
                 has_hidden_dissatisfaction=i % 4 == 1,
                 has_tonal_errors=i % 4 == 2,
                 has_logical_errors=i % 4 == 3,
@@ -74,6 +78,9 @@ def _generate_group_sync(group_id: str, topic: str, context_str: str, num_chats:
     scenarios = build_group_scenarios(num_chats)
     llm = get_llm()
 
+    logger.info("[group=%s] Starting generation: topic=%r num_chats=%d", group_id, topic, num_chats)
+    t_total = time.perf_counter()
+
     # Pre-create all chat records so the FE can see them immediately
     for i, scenario in enumerate(scenarios):
         chat_id = f"chat_{i + 1:03d}"
@@ -86,6 +93,8 @@ def _generate_group_sync(group_id: str, topic: str, context_str: str, num_chats:
             "analysis": None,
         })
 
+    succeeded = 0
+    failed = 0
     try:
         for i, scenario in enumerate(scenarios):
             chat_id = f"chat_{i + 1:03d}"
@@ -106,9 +115,17 @@ def _generate_group_sync(group_id: str, topic: str, context_str: str, num_chats:
                     "scenario": chat.scenario.model_dump(),
                     "analysis": None,
                 })
-            except Exception:
+                succeeded += 1
+            except Exception as exc:
+                logger.error("[group=%s] [%s] Generation failed: %s", group_id, chat_id, exc, exc_info=True)
                 storage.update_chat_status(group_id, chat_id, "failed")
+                failed += 1
 
+        elapsed = time.perf_counter() - t_total
+        logger.info(
+            "[group=%s] Generation complete — succeeded=%d failed=%d (%.1fs)",
+            group_id, succeeded, failed, elapsed,
+        )
         group_data = storage.load_group(group_id)
         group_data["status"] = "generated"
         storage.save_group(group_id, group_data)
@@ -130,10 +147,16 @@ def _gather_and_generate_sync(
     """Gather context from website, merge with file context, then generate chats."""
     llm = get_llm()
 
+    logger.info("[group=%s] Gathering context from %s", group_id, website_url)
     try:
         gathered = gather_context(website_url, llm)
         website_context = gathered.context_document
+        logger.info(
+            "[group=%s] Context gathered from %s (%d chars)",
+            group_id, website_url, gathered.char_count,
+        )
     except ContextGatheringError as exc:
+        logger.error("[group=%s] Context gathering failed: %s", group_id, exc)
         group_data = storage.load_group(group_id)
         group_data["status"] = "context_gathering_failed"
         group_data["context_gathering_error"] = str(exc)
@@ -141,6 +164,7 @@ def _gather_and_generate_sync(
         return
 
     merged = _combine_contexts(file_context, website_context, website_url)
+    logger.info("[group=%s] Merged context: %d chars total", group_id, len(merged))
     storage.save_context(group_id, merged)
 
     group_data = storage.load_group(group_id)
@@ -155,12 +179,19 @@ def _analyze_group_sync(group_id: str) -> None:
     llm = get_llm()
     chats = storage.load_all_chats(group_id)
 
+    logger.info("[group=%s] Starting analysis of %d chats", group_id, len(chats))
+    t_total = time.perf_counter()
+    succeeded = 0
+    failed = 0
+
     try:
         for chat_data in chats:
             chat_id = chat_data["chat_id"]
 
             if not chat_data.get("messages"):
+                logger.warning("[group=%s] [%s] Skipping — no messages", group_id, chat_id)
                 storage.update_chat_status(group_id, chat_id, "failed")
+                failed += 1
                 continue
 
             storage.update_chat_status(group_id, chat_id, "analyzing")
@@ -169,9 +200,17 @@ def _analyze_group_sync(group_id: str) -> None:
                 chat_data["status"] = "analyzed"
                 chat_data["analysis"] = analysis.model_dump()
                 storage.save_chat(group_id, chat_id, chat_data)
-            except Exception:
+                succeeded += 1
+            except Exception as exc:
+                logger.error("[group=%s] [%s] Analysis failed: %s", group_id, chat_id, exc, exc_info=True)
                 storage.update_chat_status(group_id, chat_id, "failed")
+                failed += 1
 
+        elapsed = time.perf_counter() - t_total
+        logger.info(
+            "[group=%s] Analysis complete — succeeded=%d failed=%d (%.1fs)",
+            group_id, succeeded, failed, elapsed,
+        )
         group_data = storage.load_group(group_id)
         group_data["status"] = "completed"
         storage.save_group(group_id, group_data)
@@ -203,11 +242,17 @@ async def _run_analyze_group(group_id: str) -> None:
     await asyncio.to_thread(_analyze_group_sync, group_id)
 
 
+@router.get("", response_model=list[GroupSummary])
+async def list_groups() -> list[GroupSummary]:
+    """Return all groups sorted by creation time (newest first)."""
+    return [GroupSummary(**g) for g in storage.list_groups()]
+
+
 @router.post("", status_code=202, response_model=GroupCreateResponse)
 async def create_group(
     background_tasks: BackgroundTasks,
     topic: str = Form(...),
-    context_file: Optional[UploadFile] = File(None),
+    context_file: Union[UploadFile, str, None] = File(None),
     website_url: Optional[str] = Form(None),
     num_chats: int = Form(default=8),
 ) -> GroupCreateResponse:
@@ -215,6 +260,10 @@ async def create_group(
 
     Provide either context_file (.md), website_url, or both.
     """
+    # Swagger UI sends an empty string when no file is selected; treat it as None
+    if isinstance(context_file, str):
+        context_file = None
+
     if context_file is None and website_url is None:
         raise HTTPException(
             status_code=422,
@@ -241,6 +290,10 @@ async def create_group(
 
     group_id = str(uuid.uuid4())
     initial_status = "gathering_context" if website_url else "generating"
+    logger.info(
+        "[group=%s] Created — topic=%r num_chats=%d website_url=%s has_file=%s",
+        group_id, topic, num_chats, website_url, context_file is not None,
+    )
 
     group_data = {
         "group_id": group_id,

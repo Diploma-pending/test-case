@@ -76,3 +76,17 @@ def load_context(group_id: str) -> str:
     if not path.exists():
         return ""
     return path.read_text(encoding="utf-8")
+
+
+def list_groups() -> list[dict]:
+    """Return all group metadata records, sorted by created_at descending."""
+    if not GROUPS_DIR.exists():
+        return []
+    groups = []
+    for path in GROUPS_DIR.glob("*/group.json"):
+        try:
+            groups.append(json.loads(path.read_text(encoding="utf-8")))
+        except Exception:
+            continue
+    groups.sort(key=lambda g: g.get("created_at", ""), reverse=True)
+    return groups

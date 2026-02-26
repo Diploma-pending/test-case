@@ -1,7 +1,10 @@
 """Generation pipeline: build scenario matrix, generate and validate chats."""
 
 import json
+import logging
 import sys
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -10,16 +13,16 @@ from chat_analysis.core.security import load_context_safely
 from chat_analysis.generation.models import (
     CaseType,
     ChatScenario,
-    ChatValidationResult,
     GeneratedChat,
     GeneratedDataset,
 )
 from chat_analysis.generation.prompts import (
     GENERATE_SYSTEM_TEMPLATE,
-    VALIDATE_SYSTEM_TEMPLATE,
     build_special_requirements,
 )
-from chat_analysis.models import ChatDomain
+from chat_analysis.models import ChatDomain, MessageRole
+
+logger = logging.getLogger(__name__)
 
 
 def build_scenario_matrix() -> list[ChatScenario]:
@@ -90,16 +93,20 @@ def generate_single_chat(
         "special_requirements": special_requirements,
     }
 
-    # Step 2: Validate prompt
-    validate_prompt = ChatPromptTemplate.from_messages([
-        ("system", VALIDATE_SYSTEM_TEMPLATE),
-        ("human", "Validate the chat above and return the validation result."),
-    ])
+    flags = [
+        f for f, v in [
+            ("hidden_dissatisfaction", scenario.has_hidden_dissatisfaction),
+            ("tonal_errors", scenario.has_tonal_errors),
+            ("logical_errors", scenario.has_logical_errors),
+        ] if v
+    ]
+    flag_str = f" [{', '.join(flags)}]" if flags else ""
+    logger.info("[%s] Generating %s/%s%s", chat_id, domain_label, scenario.case_type.value, flag_str)
 
-    validate_chain = validate_prompt | llm.with_structured_output(ChatValidationResult)
+    t_start = time.perf_counter()
 
     for attempt in range(MAX_RETRIES):
-        print(f"  Attempt {attempt + 1}/{MAX_RETRIES}...")
+        logger.debug("[%s] Attempt %d/%d", chat_id, attempt + 1, MAX_RETRIES)
 
         chat = generate_chain.invoke(generate_params)
 
@@ -107,61 +114,86 @@ def generate_single_chat(
         chat.chat_id = chat_id
         chat.scenario = scenario
 
-        # Validate
-        chat_json = chat.model_dump_json(indent=2)
-        validation = validate_chain.invoke({
-            "domain": domain_label,
-            "case_type": scenario.case_type.value,
-            "has_hidden_dissatisfaction": str(scenario.has_hidden_dissatisfaction),
-            "has_tonal_errors": str(scenario.has_tonal_errors),
-            "has_logical_errors": str(scenario.has_logical_errors),
-            "special_requirements": special_requirements,
-            "chat_json": chat_json,
-        })
-
-        if validation.is_valid:
-            print(f"  Validated OK.")
+        # Lightweight structural validation (no extra LLM call)
+        issues = _validate_structure(chat)
+        if not issues:
+            elapsed = time.perf_counter() - t_start
+            logger.info(
+                "[%s] Done — %d messages in %.1fs",
+                chat_id, len(chat.messages), elapsed,
+            )
             return chat
         else:
-            print(f"  Validation failed: {validation.issues}")
-            if validation.suggestions:
-                print(f"  Suggestions: {validation.suggestions}")
+            logger.warning("[%s] Structural issues (attempt %d): %s", chat_id, attempt + 1, issues)
 
-    # Return last attempt even if not fully validated
-    print(f"  WARNING: Using last attempt after {MAX_RETRIES} retries.")
+    elapsed = time.perf_counter() - t_start
+    logger.warning(
+        "[%s] Using last attempt after %d retries (%.1fs)", chat_id, MAX_RETRIES, elapsed
+    )
     return chat
 
 
+def _validate_structure(chat: GeneratedChat) -> list[str]:
+    """Fast structural check without an LLM call."""
+    issues = []
+    msgs = chat.messages
+    if not msgs:
+        return ["No messages generated"]
+    if msgs[0].role != MessageRole.CUSTOMER:
+        issues.append("First message must be from customer")
+    for i in range(1, len(msgs)):
+        if msgs[i].role == msgs[i - 1].role:
+            issues.append(f"Messages {i} and {i+1} have the same role (not alternating)")
+            break
+    if len(msgs) < 4:
+        issues.append(f"Too few messages: {len(msgs)} (minimum 4)")
+    return issues
+
+
 def main() -> None:
-    print("=== Support Chat Generator ===\n")
+    from chat_analysis.core.logging import setup_logging
+    setup_logging()
+
+    logger.info("=== Support Chat Generator ===")
 
     llm = get_llm()
     scenarios = build_scenario_matrix()
-    print(f"Generated {len(scenarios)} scenarios.\n")
+    logger.info("Built %d scenarios", len(scenarios))
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    chats = []
-    for i, scenario in enumerate(scenarios):
-        chat_id = f"chat_{i + 1:03d}"
-        print(f"[{i + 1}/{len(scenarios)}] Generating {chat_id}: "
-              f"{scenario.domain.value} / {scenario.case_type.value}"
-              f"{' [hidden_dissatisfaction]' if scenario.has_hidden_dissatisfaction else ''}"
-              f"{' [tonal_errors]' if scenario.has_tonal_errors else ''}"
-              f"{' [logical_errors]' if scenario.has_logical_errors else ''}")
+    workers = min(5, len(scenarios))  # max 5 concurrent Gemini requests
+    futures: dict = {}
+    chats_by_index: dict[int, GeneratedChat] = {}
 
-        chat = generate_single_chat(scenario, chat_id, llm)
-        chats.append(chat)
-        print()
+    t_total = time.perf_counter()
+    logger.info("Submitting %d chats to thread pool (workers=%d)", len(scenarios), workers)
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        for i, scenario in enumerate(scenarios):
+            chat_id = f"chat_{i + 1:03d}"
+            future = executor.submit(generate_single_chat, scenario, chat_id, llm)
+            futures[future] = (i, chat_id)
+
+        for future in as_completed(futures):
+            i, chat_id = futures[future]
+            try:
+                chat = future.result()
+                chats_by_index[i] = chat
+            except Exception as exc:
+                logger.error("[%s] Generation failed: %s", chat_id, exc, exc_info=True)
+                raise
+
+    chats = [chats_by_index[i] for i in range(len(scenarios))]
 
     dataset = GeneratedDataset(chats=chats)
 
     with open(GENERATED_CHATS_PATH, "w", encoding="utf-8") as f:
         json.dump(dataset.model_dump(), f, indent=2, ensure_ascii=False)
 
-    print(f"Done! Saved {len(chats)} chats to {GENERATED_CHATS_PATH}")
+    elapsed = time.perf_counter() - t_total
+    logger.info("Saved %d chats to %s (total %.1fs)", len(chats), GENERATED_CHATS_PATH, elapsed)
 
-    # Print summary
     flags_summary = {
         "hidden_dissatisfaction": sum(1 for s in scenarios if s.has_hidden_dissatisfaction),
         "tonal_errors": sum(1 for s in scenarios if s.has_tonal_errors),
@@ -173,7 +205,7 @@ def main() -> None:
             and not s.has_logical_errors
         ),
     }
-    print(f"\nScenario distribution: {flags_summary}")
+    logger.info("Scenario distribution: %s", flags_summary)
 
 
 if __name__ == "__main__":

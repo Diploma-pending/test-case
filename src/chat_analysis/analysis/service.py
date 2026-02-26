@@ -1,7 +1,9 @@
 """Analysis pipeline: analyze generated chats for quality, intent, and mistakes."""
 
 import json
+import logging
 import sys
+import time
 
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -10,6 +12,8 @@ from chat_analysis.analysis.prompts import ANALYZE_SYSTEM_TEMPLATE, ANALYZE_VALI
 from chat_analysis.core.config import ANALYSIS_RESULTS_PATH, GENERATED_CHATS_PATH, OUTPUT_DIR, get_llm
 from chat_analysis.core.security import sanitize_text
 from chat_analysis.generation.models import GeneratedDataset
+
+logger = logging.getLogger(__name__)
 
 
 def format_chat_messages(messages: list[dict]) -> str:
@@ -31,6 +35,9 @@ def analyze_single_chat(chat: dict, llm) -> ChatAnalysis:
     chat_id = chat["chat_id"]
     chat_messages = format_chat_messages(chat["messages"])
 
+    logger.info("[%s] Analyzing", chat_id)
+    t_start = time.perf_counter()
+
     # Step 1: Analyze
     analyze_prompt = ChatPromptTemplate.from_messages([
         ("system", ANALYZE_SYSTEM_TEMPLATE),
@@ -46,6 +53,12 @@ def analyze_single_chat(chat: dict, llm) -> ChatAnalysis:
 
     # Force correct chat_id
     analysis.chat_id = chat_id
+
+    logger.debug(
+        "[%s] Initial analysis — intent=%s satisfaction=%s quality=%d mistakes=%d",
+        chat_id, analysis.intent, analysis.satisfaction.value,
+        analysis.quality_score, len(analysis.agent_mistakes),
+    )
 
     # Step 2: Validate and correct
     validate_prompt = ChatPromptTemplate.from_messages([
@@ -64,25 +77,35 @@ def analyze_single_chat(chat: dict, llm) -> ChatAnalysis:
     corrected = validation.corrected_analysis
     corrected.chat_id = chat_id
 
+    elapsed = time.perf_counter() - t_start
+
     if not validation.is_correct:
-        print(f"  Corrections applied: {validation.corrections}")
+        logger.info("[%s] Corrections applied: %s", chat_id, validation.corrections)
+
+    logger.info(
+        "[%s] Done — intent=%s satisfaction=%s quality=%d/10 mistakes=%d (%.1fs)",
+        chat_id, corrected.intent, corrected.satisfaction.value,
+        corrected.quality_score, len(corrected.agent_mistakes), elapsed,
+    )
 
     return corrected
 
 
 def main() -> None:
-    print("=== Support Chat Analyzer ===\n")
+    from chat_analysis.core.logging import setup_logging
+    setup_logging()
+
+    logger.info("=== Support Chat Analyzer ===")
 
     if not GENERATED_CHATS_PATH.exists():
-        print(f"Error: {GENERATED_CHATS_PATH} not found.")
-        print("Run generate.py first to create the chat dataset.")
+        logger.error("%s not found — run generate.py first", GENERATED_CHATS_PATH)
         sys.exit(1)
 
     with open(GENERATED_CHATS_PATH, "r", encoding="utf-8") as f:
         raw_data = json.load(f)
 
     dataset = GeneratedDataset.model_validate(raw_data)
-    print(f"Loaded {len(dataset.chats)} chats from {GENERATED_CHATS_PATH}\n")
+    logger.info("Loaded %d chats from %s", len(dataset.chats), GENERATED_CHATS_PATH)
 
     llm = get_llm()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -90,30 +113,17 @@ def main() -> None:
     analyses = []
     for i, chat in enumerate(dataset.chats):
         chat_dict = chat.model_dump()
-        chat_id = chat_dict["chat_id"]
-        scenario = chat_dict["scenario"]
-
-        print(f"[{i + 1}/{len(dataset.chats)}] Analyzing {chat_id}: "
-              f"{scenario['domain']} / {scenario['case_type']}")
-
         analysis = analyze_single_chat(chat_dict, llm)
         analyses.append(analysis)
-
-        print(f"  Intent: {analysis.intent}")
-        print(f"  Satisfaction: {analysis.satisfaction.value}")
-        print(f"  Quality: {analysis.quality_score}/10")
-        print(f"  Mistakes: {len(analysis.agent_mistakes)}")
-        print()
 
     analysis_dataset = AnalysisDataset(analyses=analyses)
 
     with open(ANALYSIS_RESULTS_PATH, "w", encoding="utf-8") as f:
         json.dump(analysis_dataset.model_dump(), f, indent=2, ensure_ascii=False)
 
-    print(f"Done! Saved {len(analyses)} analyses to {ANALYSIS_RESULTS_PATH}")
+    logger.info("Saved %d analyses to %s", len(analyses), ANALYSIS_RESULTS_PATH)
 
-    # Print summary
-    satisfaction_counts = {}
+    satisfaction_counts: dict[str, int] = {}
     total_mistakes = 0
     for a in analyses:
         level = a.satisfaction.value
@@ -121,9 +131,9 @@ def main() -> None:
         total_mistakes += len(a.agent_mistakes)
 
     avg_quality = sum(a.quality_score for a in analyses) / len(analyses) if analyses else 0
-    print(f"\nSatisfaction distribution: {satisfaction_counts}")
-    print(f"Average quality score: {avg_quality:.1f}/10")
-    print(f"Total agent mistakes found: {total_mistakes}")
+    logger.info("Satisfaction distribution: %s", satisfaction_counts)
+    logger.info("Average quality score: %.1f/10", avg_quality)
+    logger.info("Total agent mistakes found: %d", total_mistakes)
 
 
 if __name__ == "__main__":

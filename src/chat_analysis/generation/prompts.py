@@ -54,13 +54,13 @@ You are a support chat simulator. Generate a realistic customer support chat con
 {domain_context}
 
 ## Requirements
-1. The conversation must have at least 6 messages, alternating between customer and agent.
-2. Start with a customer message describing their issue.
-3. The case type is "{case_type}":
-   - simple_resolved: straightforward issue, agent resolves it quickly (3-5 exchanges)
-   - complex_resolved: multi-step issue, requires investigation, eventually resolved (5-8 exchanges)
-   - escalated: agent cannot fully resolve, escalates to a specialist or higher tier
-   - unresolved: issue remains unresolved by the end of the conversation
+1. Messages alternate between customer and agent, starting with the customer.
+2. Message count by case type:
+   - simple_resolved: 4-6 messages (quick resolution)
+   - complex_resolved: 6-10 messages (investigation needed)
+   - escalated: 5-8 messages (ends with escalation)
+   - unresolved: 4-8 messages (ends without resolution)
+3. The case type is "{case_type}" — match the outcome exactly.
 
 ## Special Requirements
 {special_requirements}
