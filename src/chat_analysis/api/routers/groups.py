@@ -29,7 +29,7 @@ from chat_analysis.context_gathering.service import (
 from chat_analysis.core.config import get_llm
 from chat_analysis.core.security import sanitize_text
 from chat_analysis.generation.models import CaseType, ChatScenario
-from chat_analysis.generation.service import generate_single_chat
+from chat_analysis.generation.service import generate_single_chat, structure_product_context
 from chat_analysis.models import ChatDomain
 
 router = APIRouter(prefix="/groups", tags=["groups"])
@@ -85,6 +85,12 @@ def _generate_group_sync(group_id: str, topic: str, context_str: str, num_chats:
     logger.info("[group=%s] Starting generation: topic=%r num_chats=%d", group_id, topic, num_chats)
     t_total = time.perf_counter()
 
+    # Step 1: Structure context once for the entire group
+    structured_ctx = None
+    if context_str and context_str.strip():
+        logger.info("[group=%s] Structuring product context...", group_id)
+        structured_ctx = structure_product_context(context_str, llm)
+
     # Pre-create all chat records so the FE can see them immediately
     for i, scenario in enumerate(scenarios):
         chat_id = f"chat_{i + 1:03d}"
@@ -108,6 +114,7 @@ def _generate_group_sync(group_id: str, topic: str, context_str: str, num_chats:
                     scenario,
                     chat_id,
                     llm,
+                    structured_context=structured_ctx,
                     context_override=context_str,
                     topic_override=topic,
                 )
