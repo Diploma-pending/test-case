@@ -27,3 +27,10 @@
 - Refunds take 5-10 business days to appear on the statement
 - Supported payment methods: Visa, Mastercard, PayPal, Apple Pay
 - Currency: USD, EUR, GBP
+
+## Domain Boundaries — NOT This Domain
+- If the customer wants a refund → belongs to "refunds" domain, not here.
+- If the customer asks about plan features or upgrades → belongs to "tariff_questions" domain.
+- If the customer can't log in → belongs to "account_access" domain.
+- If the customer reports a bug or crash → belongs to "technical_errors" domain.
+- Stay focused on payment processing failures, duplicate charges, and pending transactions.

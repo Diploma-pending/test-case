@@ -28,3 +28,10 @@
 - Proration: upgrade charged immediately for remaining days, downgrade credit applied to next cycle
 - Team plans: Pro Team ($25/user/mo, min 3 users), Enterprise Team (custom)
 - Feature comparison available at: example.com/pricing
+
+## Domain Boundaries — NOT This Domain
+- If the customer has a payment failure or charge issue → belongs to "payment_issues" domain, not here.
+- If the customer wants a refund → belongs to "refunds" domain.
+- If the customer can't log in → belongs to "account_access" domain.
+- If the customer reports a bug or crash → belongs to "technical_errors" domain.
+- Stay focused on plan comparisons, upgrades, downgrades, and billing cycles.

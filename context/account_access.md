@@ -28,3 +28,10 @@
 - Backup codes: 8 one-time codes generated at 2FA setup
 - Password requirements: min 8 characters, 1 uppercase, 1 number, 1 special character
 - Identity verification options: government ID upload, billing address + last 4 of card, security questions
+
+## Domain Boundaries — NOT This Domain
+- If the customer reports an app crash or bug → belongs to "technical_errors" domain, not here.
+- If the customer has a payment failure → belongs to "payment_issues" domain.
+- If the customer wants a refund → belongs to "refunds" domain.
+- If the customer asks about plan features or upgrades → belongs to "tariff_questions" domain.
+- Stay focused on login problems, password resets, 2FA issues, and account security.

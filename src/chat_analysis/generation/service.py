@@ -13,11 +13,13 @@ from chat_analysis.core.security import load_context_safely
 from chat_analysis.generation.models import (
     CaseType,
     ChatScenario,
+    ChatValidationResult,
     GeneratedChat,
     GeneratedDataset,
 )
 from chat_analysis.generation.prompts import (
     GENERATE_SYSTEM_TEMPLATE,
+    VALIDATE_SYSTEM_TEMPLATE,
     build_special_requirements,
 )
 from chat_analysis.models import ChatDomain, MessageRole
@@ -105,6 +107,13 @@ def generate_single_chat(
 
     t_start = time.perf_counter()
 
+    # Step 2: Validate (LLM-based quality check)
+    validate_prompt = ChatPromptTemplate.from_messages([
+        ("system", VALIDATE_SYSTEM_TEMPLATE),
+        ("human", "Validate the chat above and return your assessment."),
+    ])
+    validate_chain = validate_prompt | llm.with_structured_output(ChatValidationResult)
+
     for attempt in range(MAX_RETRIES):
         logger.debug("[%s] Attempt %d/%d", chat_id, attempt + 1, MAX_RETRIES)
 
@@ -116,7 +125,22 @@ def generate_single_chat(
 
         # Lightweight structural validation (no extra LLM call)
         issues = _validate_structure(chat)
-        if not issues:
+        if issues:
+            logger.warning("[%s] Structural issues (attempt %d): %s", chat_id, attempt + 1, issues)
+            continue
+
+        # LLM-based validation for topic adherence, case type, and flags
+        validation = validate_chain.invoke({
+            "domain": domain_label,
+            "case_type": scenario.case_type.value,
+            "has_hidden_dissatisfaction": str(scenario.has_hidden_dissatisfaction),
+            "has_tonal_errors": str(scenario.has_tonal_errors),
+            "has_logical_errors": str(scenario.has_logical_errors),
+            "special_requirements": special_requirements,
+            "chat_json": chat.model_dump_json(indent=2),
+        })
+
+        if validation.is_valid:
             elapsed = time.perf_counter() - t_start
             logger.info(
                 "[%s] Done — %d messages in %.1fs",
@@ -124,7 +148,10 @@ def generate_single_chat(
             )
             return chat
         else:
-            logger.warning("[%s] Structural issues (attempt %d): %s", chat_id, attempt + 1, issues)
+            logger.warning(
+                "[%s] Validation failed (attempt %d): %s",
+                chat_id, attempt + 1, validation.issues,
+            )
 
     elapsed = time.perf_counter() - t_start
     logger.warning(

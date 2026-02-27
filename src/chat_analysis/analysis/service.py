@@ -34,8 +34,10 @@ def analyze_single_chat(chat: dict, llm) -> ChatAnalysis:
     """
     chat_id = chat["chat_id"]
     chat_messages = format_chat_messages(chat["messages"])
+    domain = chat.get("scenario", {}).get("domain", "unknown")
+    case_type = chat.get("scenario", {}).get("case_type", "unknown")
 
-    logger.info("[%s] Analyzing", chat_id)
+    logger.info("[%s] Analyzing (%s/%s)", chat_id, domain, case_type)
     t_start = time.perf_counter()
 
     # Step 1: Analyze
@@ -49,6 +51,8 @@ def analyze_single_chat(chat: dict, llm) -> ChatAnalysis:
     analysis = analyze_chain.invoke({
         "chat_id": chat_id,
         "chat_messages": chat_messages,
+        "domain": domain,
+        "case_type": case_type,
     })
 
     # Force correct chat_id
@@ -72,6 +76,8 @@ def analyze_single_chat(chat: dict, llm) -> ChatAnalysis:
         "chat_id": chat_id,
         "chat_messages": chat_messages,
         "analysis_json": analysis.model_dump_json(indent=2),
+        "domain": domain,
+        "case_type": case_type,
     })
 
     corrected = validation.corrected_analysis

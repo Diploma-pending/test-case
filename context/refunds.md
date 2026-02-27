@@ -29,3 +29,10 @@
 - Account credit: instant, can be applied to future purchases
 - Maximum refund without supervisor approval: $200
 - Duplicate order refunds: always approved regardless of timeframe
+
+## Domain Boundaries — NOT This Domain
+- If the customer has an initial payment failure (card declined, pending charge) → belongs to "payment_issues" domain, not here.
+- If the customer asks about plan features or upgrades → belongs to "tariff_questions" domain.
+- If the customer can't log in → belongs to "account_access" domain.
+- If the customer reports a bug or crash → belongs to "technical_errors" domain.
+- Stay focused on refund requests, refund eligibility, refund status, and refund disputes.

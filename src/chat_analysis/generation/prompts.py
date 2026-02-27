@@ -65,6 +65,17 @@ You are a support chat simulator. Generate a realistic customer support chat con
 ## Special Requirements
 {special_requirements}
 
+## Topic Scope
+This conversation MUST be about "{domain}" specifically.
+- The customer's problem and all discussion must fall within this domain.
+- Do NOT mix in topics from other support domains.
+- Domain boundaries:
+  - payment_issues: failed payments, double charges, pending transactions, payment methods. NOT refund requests.
+  - technical_errors: app crashes, error codes, bugs, performance issues. NOT account lockouts.
+  - account_access: login problems, password resets, 2FA, account security. NOT app bugs.
+  - tariff_questions: plan comparisons, upgrades, downgrades, billing cycles. NOT payment failures.
+  - refunds: refund requests, refund eligibility, refund status. NOT initial payment problems.
+
 ## Style
 - Use natural, varied language — not template-like.
 - Customer messages should feel authentic (typos are okay, varied sentence lengths).

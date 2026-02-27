@@ -27,3 +27,10 @@
 - Known issue: ERR-500 on dashboard for accounts with > 10,000 records (fix in v4.3)
 - Status page: status.example.com
 - Log collection: Settings > Help > Send Diagnostic Report
+
+## Domain Boundaries — NOT This Domain
+- If the customer is locked out of their account → belongs to "account_access" domain, not here.
+- If the customer has a payment failure → belongs to "payment_issues" domain.
+- If the customer wants a refund → belongs to "refunds" domain.
+- If the customer asks about plan features → belongs to "tariff_questions" domain.
+- Stay focused on app crashes, error codes, bugs, sync issues, and performance problems.

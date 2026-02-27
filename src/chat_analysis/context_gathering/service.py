@@ -11,8 +11,11 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
 from chat_analysis.context_gathering.models import GatheredContext
-from chat_analysis.context_gathering.prompts import GATHER_CONTEXT_SYSTEM_TEMPLATE
-from chat_analysis.core.security import sanitize_text
+from chat_analysis.context_gathering.prompts import (
+    GATHER_CONTEXT_SYSTEM_TEMPLATE,
+    GENERATE_CONTEXT_FROM_KNOWLEDGE_TEMPLATE,
+)
+from chat_analysis.core.security import load_domain_context, sanitize_text
 
 logger = logging.getLogger(__name__)
 
@@ -144,3 +147,44 @@ def gather_context(url: str, llm) -> GatheredContext:
         context_document=context_document,
         char_count=len(context_document),
     )
+
+
+def generate_context_from_knowledge(topic: str, llm) -> str:
+    """Generate a support context document using the LLM's own knowledge about a topic.
+
+    Args:
+        topic: The business/product name to generate context for.
+        llm: A LangChain LLM instance.
+
+    Returns:
+        A structured markdown context document.
+    """
+    logger.info("Generating context from LLM knowledge for topic: %s", topic)
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", GENERATE_CONTEXT_FROM_KNOWLEDGE_TEMPLATE),
+        ("human", "Generate the support context document for the topic above."),
+    ])
+    chain = prompt | llm | StrOutputParser()
+    context_document: str = chain.invoke({"topic": topic})
+    logger.info("LLM-generated context for %r: %d chars", topic, len(context_document))
+    return context_document
+
+
+def resolve_context(topic: str, llm) -> tuple[str, str]:
+    """Resolve context for a topic: try domain file first, then LLM knowledge.
+
+    Args:
+        topic: The business/product name.
+        llm: A LangChain LLM instance.
+
+    Returns:
+        Tuple of (context_content, source) where source is "domain_file" or "llm_knowledge".
+    """
+    domain_content = load_domain_context(topic)
+    if domain_content is not None:
+        logger.info("Resolved context for %r from domain file", topic)
+        return domain_content, "domain_file"
+
+    logger.info("No domain file found for %r, generating from LLM knowledge", topic)
+    content = generate_context_from_knowledge(topic, llm)
+    return content, "llm_knowledge"

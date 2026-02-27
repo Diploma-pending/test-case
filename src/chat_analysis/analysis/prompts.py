@@ -3,8 +3,12 @@
 ANALYZE_SYSTEM_TEMPLATE = """\
 You are a support chat quality analyst. Analyze the following customer support conversation.
 
+## Chat Metadata
+- Chat ID: {chat_id}
+- Expected Domain: {domain}
+- Expected Case Type: {case_type}
+
 ## Chat to Analyze
-Chat ID: {chat_id}
 {chat_messages}
 
 ## Analysis Instructions
@@ -47,8 +51,19 @@ List each specific mistake with:
 - description: what went wrong
 - message_index: which message (0-based index)
 
-### 5. Reasoning
-Explain your assessment in 2-3 sentences, specifically addressing any hidden dissatisfaction signals.
+### 5. Topic Adherence
+Verify the conversation stays within the expected domain "{domain}".
+- Flag if the conversation drifts into unrelated support topics.
+- Domain boundaries:
+  - payment_issues: failed payments, double charges, pending transactions. NOT refunds.
+  - technical_errors: app crashes, error codes, bugs. NOT account lockouts.
+  - account_access: login problems, password resets, 2FA. NOT app bugs.
+  - tariff_questions: plan comparisons, upgrades, downgrades. NOT payment failures.
+  - refunds: refund requests, refund eligibility, refund status. NOT initial payment problems.
+
+### 6. Reasoning
+Explain your assessment in 2-3 sentences, specifically addressing any hidden dissatisfaction signals \
+and topic adherence.
 """
 
 ANALYZE_VALIDATE_TEMPLATE = """\
@@ -56,6 +71,8 @@ You are a meta-reviewer validating a chat analysis for correctness and completen
 
 ## Original Chat
 Chat ID: {chat_id}
+Expected Domain: {domain}
+Expected Case Type: {case_type}
 {chat_messages}
 
 ## Analysis to Validate
@@ -75,6 +92,8 @@ terse replies, passive acceptance), satisfaction MUST NOT be "satisfied"
 4. **Agent Mistakes**: Are all mistakes identified? Are there any missed?
    - Re-read each agent message looking for tonal and logical issues
 5. **Reasoning**: Does it accurately explain the assessment?
+6. **Topic Adherence**: Does the chat stay within the expected domain "{domain}"?
+   Flag if the conversation drifts into unrelated support topics.
 
 Return the corrected analysis. If no corrections are needed, return the original analysis unchanged.
 """
