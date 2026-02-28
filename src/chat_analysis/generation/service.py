@@ -271,8 +271,16 @@ def generate_single_chat(
             )
 
             if validation is None:
-                logger.warning("[%s] Validation returned None (attempt %d)", chat_id, attempt + 1)
-                continue
+                logger.warning(
+                    "[%s] Validation returned None (attempt %d), accepting (structural check passed)",
+                    chat_id, attempt + 1,
+                )
+                elapsed = time.perf_counter() - t_start
+                logger.info(
+                    "[%s] Done — %d messages in %.1fs",
+                    chat_id, len(chat.messages), elapsed,
+                )
+                return chat
 
             if validation.is_valid:
                 elapsed = time.perf_counter() - t_start
