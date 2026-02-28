@@ -15,6 +15,16 @@ class AgentMistake(BaseModel):
         "or 'logical' (factual/procedural error)"
     )
     description: str = Field(description="Detailed description of what the agent did wrong")
+    cause: str = Field(
+        description="Root cause of the agent mistake. One of: "
+        "'lack_of_information' (agent lacked access to relevant policy/account data), "
+        "'hallucinated' (agent fabricated facts, prices, or policies), "
+        "'knowledge_gap' (agent unfamiliar with specific product or service details), "
+        "'process_error' (agent followed wrong procedure or escalation path), "
+        "'poor_communication' (agent had correct info but expressed it poorly or rudely), "
+        "'bad_system_prompt' (agent appears to have been given wrong or insufficient instructions), "
+        "'misunderstood_customer' (agent misread what the customer was actually asking)"
+    )
     message_index: int = Field(
         description="Index of the message (0-based) where the mistake occurred"
     )

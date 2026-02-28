@@ -47,6 +47,14 @@ lack of empathy (-1)
 List each specific mistake with:
 - type: "tonal" or "logical"
 - description: what went wrong
+- cause: root cause of the mistake — pick the best-fitting label:
+  - "lack_of_information": agent lacked access to relevant policy or account data
+  - "hallucinated": agent fabricated facts, prices, features, or policies
+  - "knowledge_gap": agent was unfamiliar with specific product/service details
+  - "process_error": agent followed wrong procedure or escalation path
+  - "poor_communication": agent had correct info but communicated it poorly or rudely
+  - "bad_system_prompt": agent appears to have been given wrong or missing instructions
+  - "misunderstood_customer": agent misread what the customer was actually asking
 - message_index: which message (0-based index)
 
 ### 5. Topic Adherence
@@ -87,6 +95,7 @@ terse replies, passive acceptance), satisfaction MUST NOT be "satisfied"
    - If no mistakes found, score should be >= 7
 4. **Agent Mistakes**: Are all mistakes identified? Are there any missed?
    - Re-read each agent message looking for tonal and logical issues
+   - Verify each mistake has a correct `cause` label assigned
 5. **Reasoning**: Does it accurately explain the assessment?
 6. **Topic Adherence**: Does the chat stay within the inferred support domain?
    Flag if the conversation drifts into unrelated support topics.
