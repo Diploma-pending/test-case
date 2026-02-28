@@ -51,6 +51,9 @@ def analyze_single_chat(chat: dict, llm) -> ChatAnalysis:
         "chat_messages": chat_messages,
     })
 
+    if analysis is None:
+        raise RuntimeError(f"[{chat_id}] Analysis chain returned None — LLM failed to produce structured output")
+
     # Force correct chat_id
     analysis.chat_id = chat_id
 
@@ -73,6 +76,16 @@ def analyze_single_chat(chat: dict, llm) -> ChatAnalysis:
         "chat_messages": chat_messages,
         "analysis_json": analysis.model_dump_json(indent=2),
     })
+
+    if validation is None:
+        logger.warning("[%s] Validation returned None, using initial analysis", chat_id)
+        elapsed = time.perf_counter() - t_start
+        logger.info(
+            "[%s] Done — intent=%s satisfaction=%s quality=%d/10 mistakes=%d (%.1fs)",
+            chat_id, analysis.intent, analysis.satisfaction.value,
+            analysis.quality_score, len(analysis.agent_mistakes), elapsed,
+        )
+        return analysis
 
     corrected = validation.corrected_analysis
     corrected.chat_id = chat_id
