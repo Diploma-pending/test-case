@@ -125,7 +125,7 @@ def _generate_group_sync(group_id: str, topic: str, context_str: str, num_chats:
                     "case_type": scenario.case_type.value,
                     "status": "generated",
                     "messages": [m.model_dump() for m in chat.messages],
-                    "scenario": chat.scenario.model_dump(),
+                    "scenario": scenario.model_dump(),
                     "analysis": None,
                 })
                 succeeded += 1
