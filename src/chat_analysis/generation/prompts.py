@@ -255,8 +255,7 @@ in the required_entities.
 
 ### Realistic Fake PII (MANDATORY)
 Generate realistic-looking but fictional personal data for each conversation. \
-NEVER use placeholder patterns like [CUSTOMER_NAME], [CUSTOMER_EMAIL], {{name}}, {name}, \
-or any bracketed/curly-braced tokens. Instead, invent believable fake data:
+NEVER use placeholder patterns like [CUSTOMER_NAME], [CUSTOMER_EMAIL], or any bracketed/curly-braced placeholder tokens. Instead, invent believable fake data:
 - Customer name: use a realistic first name (e.g. "Sarah", "Mike", "Priya")
 - Email: use a realistic fake email (e.g. "sarah.jones82@gmail.com")
 - Order/transaction ID: use a realistic alphanumeric ID (e.g. "ORD-29481", "#TXN-8834")
