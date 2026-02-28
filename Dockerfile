@@ -9,4 +9,8 @@ COPY . .
 
 RUN mkdir -p output
 
-CMD ["python", "generate.py"]
+ENV PYTHONPATH=src
+
+EXPOSE 8000
+
+CMD ["python", "main.py"]
