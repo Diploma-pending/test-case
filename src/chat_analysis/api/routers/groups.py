@@ -316,23 +316,32 @@ async def list_groups() -> list[GroupSummary]:
 @router.post("", status_code=202, response_model=GroupCreateResponse)
 async def create_group(
     background_tasks: BackgroundTasks,
-    topic: str = Form(..., description="Display name for the group"),
     business: Optional[BusinessContext] = Form(
         None,
-        description="Preset Scalara business context from domains/, or CUSTOM for your own context (file/URL/topic).",
+        description="Preset Scalara business context from domains/, or CUSTOM for your own context (file/URL).",
     ),
     context_file: Union[UploadFile, str, None] = File(None),
     website_url: Optional[str] = Form(None),
     num_chats: int = Form(default=8),
 ) -> GroupCreateResponse:
-    """Create a new chat group from a topic, then generate chats in the background.
+    """Create a new chat group and generate chats in the background.
 
     Set business to a preset (e.g. brighterly, dressly) to use that context from domains/.
-    Set business to CUSTOM or omit to use your own context: context_file (.md), website_url, or topic (resolved from domain file or LLM).
+    Set business to CUSTOM or omit to use your own context: context_file (.md) or website_url.
     """
     # Swagger UI sends an empty string when no file is selected; treat it as None
     if isinstance(context_file, str):
         context_file = None
+
+    # Derive a display name from available inputs
+    if business is not None and business != BusinessContext.CUSTOM:
+        topic = _business_context_label(business.value)
+    elif website_url is not None:
+        topic = urlparse(website_url).hostname or "Custom Group"
+    elif isinstance(context_file, UploadFile) and context_file.filename:
+        topic = context_file.filename.removesuffix(".md")
+    else:
+        topic = "Custom Group"
 
     # Eager URL format validation before creating the group
     if website_url is not None:
