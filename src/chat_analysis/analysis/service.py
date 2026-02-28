@@ -9,7 +9,13 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from chat_analysis.analysis.models import AnalysisDataset, AnalysisValidationResult, ChatAnalysis
 from chat_analysis.analysis.prompts import ANALYZE_SYSTEM_TEMPLATE, ANALYZE_VALIDATE_TEMPLATE
-from chat_analysis.core.config import ANALYSIS_RESULTS_PATH, GENERATED_CHATS_PATH, OUTPUT_DIR, get_llm
+from chat_analysis.core.config import (
+    ANALYSIS_RESULTS_PATH,
+    GENERATED_CHATS_PATH,
+    MAX_RETRIES,
+    OUTPUT_DIR,
+    get_llm,
+)
 from chat_analysis.core.security import sanitize_text
 from chat_analysis.generation.models import GeneratedDataset
 
@@ -46,13 +52,18 @@ def analyze_single_chat(chat: dict, llm) -> ChatAnalysis:
 
     analyze_chain = analyze_prompt | llm.with_structured_output(ChatAnalysis)
 
-    analysis = analyze_chain.invoke({
-        "chat_id": chat_id,
-        "chat_messages": chat_messages,
-    })
+    analysis = None
+    for attempt in range(MAX_RETRIES):
+        analysis = analyze_chain.invoke({
+            "chat_id": chat_id,
+            "chat_messages": chat_messages,
+        })
+        if analysis is not None:
+            break
+        logger.warning("[%s] Analysis returned None (attempt %d/%d)", chat_id, attempt + 1, MAX_RETRIES)
 
     if analysis is None:
-        raise RuntimeError(f"[{chat_id}] Analysis chain returned None — LLM failed to produce structured output")
+        raise RuntimeError(f"[{chat_id}] Analysis returned None after {MAX_RETRIES} attempts")
 
     # Force correct chat_id
     analysis.chat_id = chat_id
