@@ -149,10 +149,9 @@ class ScenarioBrief(BaseModel):
 
 
 class GeneratedChat(BaseModel):
-    """A single generated support chat with its scenario metadata."""
+    """A single generated support chat."""
 
     chat_id: str = Field(description="Unique identifier for this chat, e.g. 'chat_001'")
-    scenario: ChatScenario = Field(description="The scenario parameters used to generate this chat")
     messages: list[ChatMessage] = Field(
         description="The conversation messages in chronological order, "
         "alternating between customer and agent. "

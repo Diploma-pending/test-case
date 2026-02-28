@@ -5,8 +5,6 @@ You are a support chat quality analyst. Analyze the following customer support c
 
 ## Chat Metadata
 - Chat ID: {chat_id}
-- Expected Domain: {domain}
-- Expected Case Type: {case_type}
 
 ## Chat to Analyze
 {chat_messages}
@@ -52,7 +50,7 @@ List each specific mistake with:
 - message_index: which message (0-based index)
 
 ### 5. Topic Adherence
-Verify the conversation stays within the expected domain "{domain}".
+Infer the support domain from the conversation and verify the discussion stays within it.
 - Flag if the conversation drifts into unrelated support topics.
 - Domain boundaries:
   - payment_issues: failed payments, double charges, pending transactions. NOT refunds.
@@ -71,8 +69,6 @@ You are a meta-reviewer validating a chat analysis for correctness and completen
 
 ## Original Chat
 Chat ID: {chat_id}
-Expected Domain: {domain}
-Expected Case Type: {case_type}
 {chat_messages}
 
 ## Analysis to Validate
@@ -92,7 +88,7 @@ terse replies, passive acceptance), satisfaction MUST NOT be "satisfied"
 4. **Agent Mistakes**: Are all mistakes identified? Are there any missed?
    - Re-read each agent message looking for tonal and logical issues
 5. **Reasoning**: Does it accurately explain the assessment?
-6. **Topic Adherence**: Does the chat stay within the expected domain "{domain}"?
+6. **Topic Adherence**: Does the chat stay within the inferred support domain?
    Flag if the conversation drifts into unrelated support topics.
 
 Return the corrected analysis. If no corrections are needed, return the original analysis unchanged.

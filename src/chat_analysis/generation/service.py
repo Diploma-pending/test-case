@@ -149,9 +149,8 @@ def _write_conversation(
         "chat_id": chat_id,
     })
 
-    # Force correct metadata
+    # Force correct chat_id
     result.chat_id = chat_id
-    result.scenario = scenario
     return result
 
 
@@ -159,6 +158,7 @@ def _validate_conversation(
     structured_context: StructuredContext,
     brief: ScenarioBrief,
     chat: GeneratedChat,
+    scenario: ChatScenario,
     domain_label: str,
     llm,
 ) -> ChatValidationResult:
@@ -173,10 +173,10 @@ def _validate_conversation(
         "structured_context": structured_context.to_prompt_text(),
         "brief": brief.to_prompt_text(),
         "domain": domain_label,
-        "case_type": chat.scenario.case_type.value,
-        "has_hidden_dissatisfaction": str(chat.scenario.has_hidden_dissatisfaction),
-        "has_tonal_errors": str(chat.scenario.has_tonal_errors),
-        "has_logical_errors": str(chat.scenario.has_logical_errors),
+        "case_type": scenario.case_type.value,
+        "has_hidden_dissatisfaction": str(scenario.has_hidden_dissatisfaction),
+        "has_tonal_errors": str(scenario.has_tonal_errors),
+        "has_logical_errors": str(scenario.has_logical_errors),
         "chat_json": chat.model_dump_json(indent=2),
     })
 
@@ -267,7 +267,7 @@ def generate_single_chat(
 
             # Step 4: LLM-based validation
             validation = _validate_conversation(
-                structured_context, brief, chat, domain_label, llm,
+                structured_context, brief, chat, scenario, domain_label, llm,
             )
 
             if validation.is_valid:
