@@ -11,8 +11,9 @@ load_dotenv()
 
 # Project root is 3 levels up from src/chat_analysis/core/
 BASE_DIR = Path(__file__).parents[3]
-CONTEXT_DIR = BASE_DIR / "context"
-DOMAINS_DIR = BASE_DIR / "domains"
+_PACKAGE_DIR = Path(__file__).parents[1]
+CONTEXT_DIR = _PACKAGE_DIR / "data" / "context"
+DOMAINS_DIR = _PACKAGE_DIR / "data" / "domains"
 OUTPUT_DIR = BASE_DIR / "output"
 
 GENERATED_CHATS_PATH = OUTPUT_DIR / "generated_chats.json"

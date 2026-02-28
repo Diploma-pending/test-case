@@ -38,8 +38,8 @@ The system has two sequential pipelines, each using a **two-step LangChain LCEL 
 
 1. `build_scenario_matrix()` creates 20 deterministic scenarios (5 domains × 4 case types), assigning flags (hidden dissatisfaction, tonal errors, logical errors) via modular arithmetic (`idx % 4`).
 2. Per scenario: `generate_chain = prompt | llm.with_structured_output(GeneratedChat)` generates a chat, then `validate_chain = prompt | llm.with_structured_output(ChatValidationResult)` validates it. Retries up to `MAX_RETRIES` (3) times on failure.
-3. Domain-specific context is loaded from `context/<domain>.md` via `security.load_context_safely()`, which also sanitizes prompt injection patterns.
-4. Brand-specific support context is loaded from `domains/<brand>.md` to ground generated chats in realistic product details, policies, and edge cases.
+3. Domain-specific context is loaded from `src/chat_analysis/data/context/<domain>.md` via `security.load_context_safely()`, which also sanitizes prompt injection patterns.
+4. Brand-specific support context is loaded from `src/chat_analysis/data/domains/<brand>.md` to ground generated chats in realistic product details, policies, and edge cases.
 
 ### Analysis pipeline (`analyze.py` → `src/chat_analysis/analysis/`)
 
@@ -52,6 +52,9 @@ The system has two sequential pipelines, each using a **two-step LangChain LCEL 
 ```
 src/chat_analysis/
 ├── models.py              # Shared enums: MessageRole, ChatDomain, CaseType, SatisfactionLevel + ChatMessage
+├── data/
+│   ├── context/           # Domain-specific .md context files (payment, technical, etc.)
+│   └── domains/           # Brand-specific .md support context files
 ├── core/
 │   ├── config.py          # get_llm() factory; BASE_DIR, OUTPUT_DIR, CONTEXT_DIR paths; NUM_CHATS_PER_DOMAIN, MAX_RETRIES
 │   └── security.py        # sanitize_text(), validate_context_file(), load_context_safely()
@@ -67,7 +70,7 @@ src/chat_analysis/
 
 ## Domain Context Files
 
-The `domains/` directory contains brand-specific support context documents used to make generated chats realistic. Each file covers:
+The `src/chat_analysis/data/domains/` directory contains brand-specific support context documents used to make generated chats realistic. Each file covers:
 - Business overview, pricing tiers, and key features
 - Support domain context per category (payment, technical, account, tariff, refunds)
 - Support policies, SLAs, and self-service options
@@ -78,17 +81,17 @@ Available brand contexts:
 
 | File | Brand |
 |---|---|
-| `domains/brighterly.md` | Brighterly — online math tutoring for kids |
-| `domains/dressly.md` | Dressly — fashion/clothing subscription |
-| `domains/howly.md` | Howly — on-demand expert Q&A platform |
-| `domains/liven.md` | Liven — CBT-based mental health & well-being app |
-| `domains/maxbeauty.md` | MaxBeauty — beauty/cosmetics e-commerce |
-| `domains/pawchamp.md` | PawChamp — dog training & care platform |
-| `domains/relatio.md` | Relatio — relationship coaching app |
-| `domains/riseguide.md` | RiseGuide — personal development & coaching |
-| `domains/storyby.md` | Storyby — personalized children's storybooks |
+| `data/domains/brighterly.md` | Brighterly — online math tutoring for kids |
+| `data/domains/dressly.md` | Dressly — fashion/clothing subscription |
+| `data/domains/howly.md` | Howly — on-demand expert Q&A platform |
+| `data/domains/liven.md` | Liven — CBT-based mental health & well-being app |
+| `data/domains/maxbeauty.md` | MaxBeauty — beauty/cosmetics e-commerce |
+| `data/domains/pawchamp.md` | PawChamp — dog training & care platform |
+| `data/domains/relatio.md` | Relatio — relationship coaching app |
+| `data/domains/riseguide.md` | RiseGuide — personal development & coaching |
+| `data/domains/storyby.md` | Storyby — personalized children's storybooks |
 
-These files are injected into generation prompts alongside the support-category context from `context/<domain>.md`.
+These files are injected into generation prompts alongside the support-category context from `src/chat_analysis/data/context/<domain>.md`.
 
 ## Configuration
 
@@ -105,7 +108,7 @@ Environment variables in `.env`:
 
 ## Coding Standards
 
-See `python_coding_rules.md` for full standards. Key rules:
+See `docs/python_coding_rules.md` for full standards. Key rules:
 - **Python 3.11+**, Black (88-char lines), Ruff, mypy/Pyright, pytest
 - `snake_case` for functions/variables, `CapWords` for classes, `UPPER_SNAKE_CASE` for constants
 - Standard library → third-party → local import ordering (Ruff `I` rule enforces this)

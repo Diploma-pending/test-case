@@ -32,7 +32,7 @@ POST /groups (topic, context_file?, website_url?, num_chats)
                                          │   ├── load_domain_context(topic)
                                          │   │   ├── normalize_domain_name(topic)
                                          │   │   │   └── lowercase, replace non-alnum → '_'
-                                         │   │   ├── exact match: domains/{normalized}.md
+                                         │   │   ├── exact match: src/chat_analysis/data/domains/{normalized}.md
                                          │   │   └── compact match: strip '_' and compare
                                          │   │
                                          │   ├── found? → return (content, "domain_file")

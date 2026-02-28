@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 
 class BusinessContext(str, Enum):
-    """Preset Scalara business context from domains/ or custom user-provided context."""
+    """Preset Scalara business context from src/chat_analysis/data/domains/ or custom user-provided context."""
 
     BRIGHTERLY = "brighterly"
     DRESSLY = "dressly"

@@ -18,6 +18,9 @@ Built with LangChain LCEL chains and Pydantic structured output (`with_structure
 ```
 src/chat_analysis/
 ├── models.py              # Shared enums and ChatMessage
+├── data/
+│   ├── context/           # Domain-specific .md context files
+│   └── domains/           # Brand-specific .md support context files
 ├── core/
 │   ├── config.py          # LLM factory, paths, generation params
 │   └── security.py        # Input sanitization, path validation
@@ -25,13 +28,16 @@ src/chat_analysis/
 │   ├── models.py          # Generation-specific Pydantic models
 │   ├── prompts.py         # Generation and validation prompt templates
 │   └── service.py         # Generation pipeline logic
-└── analysis/
-    ├── models.py          # Analysis-specific Pydantic models
-    ├── prompts.py         # Analysis and meta-validation prompt templates
-    └── service.py         # Analysis pipeline logic
+├── analysis/
+│   ├── models.py          # Analysis-specific Pydantic models
+│   ├── prompts.py         # Analysis and meta-validation prompt templates
+│   └── service.py         # Analysis pipeline logic
+└── api/                   # FastAPI application
+    ├── models.py          # API request/response schemas
+    └── routers/           # API route handlers
+docs/                      # Documentation (CONTEXT.md, python_coding_rules.md, etc.)
 generate.py                # Entry point: generate chat dataset
 analyze.py                 # Entry point: analyze chats
-context/                   # Domain-specific .md context files
 tests/                     # Test suite
 output/                    # Generated outputs (gitignored)
 ```

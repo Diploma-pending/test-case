@@ -299,7 +299,7 @@ def _business_context_label(value: str) -> str:
 
 @router.get("/businesses", response_model=list[BusinessContextItem])
 async def list_businesses() -> list[BusinessContextItem]:
-    """Return available preset business contexts from domains/ for UI dropdown (excludes CUSTOM)."""
+    """Return available preset business contexts from data/domains/ for UI dropdown (excludes CUSTOM)."""
     return [
         BusinessContextItem(id=bc.value, label=_business_context_label(bc.value))
         for bc in BusinessContext
@@ -318,7 +318,7 @@ async def create_group(
     background_tasks: BackgroundTasks,
     business: Optional[BusinessContext] = Form(
         None,
-        description="Preset Scalara business context from domains/, or CUSTOM for your own context (file/URL).",
+        description="Preset Scalara business context from data/domains/, or CUSTOM for your own context (file/URL).",
     ),
     context_file: Union[UploadFile, str, None] = File(None),
     website_url: Optional[str] = Form(None),
@@ -326,7 +326,7 @@ async def create_group(
 ) -> GroupCreateResponse:
     """Create a new chat group and generate chats in the background.
 
-    Set business to a preset (e.g. brighterly, dressly) to use that context from domains/.
+    Set business to a preset (e.g. brighterly, dressly) to use that context from data/domains/.
     Set business to CUSTOM or omit to use your own context: context_file (.md) or website_url.
     """
     # Swagger UI sends an empty string when no file is selected; treat it as None
@@ -363,7 +363,7 @@ async def create_group(
 
     group_id = str(uuid.uuid4())
 
-    # Preset business: load context from domains/<value>.md only
+    # Preset business: load context from data/domains/<value>.md only
     use_preset = business is not None and business != BusinessContext.CUSTOM
     if use_preset:
         context_str = load_domain_context(business.value)
