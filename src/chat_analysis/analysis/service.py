@@ -2,17 +2,19 @@
 
 import json
 import logging
+import re
 import sys
 import time
+from typing import TypeVar
 
 from langchain_core.prompts import ChatPromptTemplate
+from pydantic import BaseModel
 
 from chat_analysis.analysis.models import AnalysisDataset, AnalysisValidationResult, ChatAnalysis
 from chat_analysis.analysis.prompts import ANALYZE_SYSTEM_TEMPLATE, ANALYZE_VALIDATE_TEMPLATE
 from chat_analysis.core.config import (
     ANALYSIS_RESULTS_PATH,
     GENERATED_CHATS_PATH,
-    MAX_RETRIES,
     OUTPUT_DIR,
     get_llm,
 )
@@ -20,6 +22,55 @@ from chat_analysis.core.security import sanitize_text
 from chat_analysis.generation.models import GeneratedDataset
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T", bound=BaseModel)
+
+
+def _extract_llm(chain) -> object:
+    """Walk an LCEL chain to find the underlying LLM instance."""
+    for step in chain.steps if hasattr(chain, "steps") else [chain]:
+        # RunnableBinding wraps the LLM — e.g. llm.bind_tools(...)
+        if hasattr(step, "bound"):
+            return step.bound
+        # Direct LLM (ChatOpenAI, ChatAnthropic, etc.)
+        if hasattr(step, "invoke") and hasattr(step, "model_name"):
+            return step
+    raise RuntimeError("Could not find LLM in chain")
+
+
+def _invoke_structured(chain, variables: dict, model_class: type[T], chat_id: str) -> T | None:
+    """Invoke a chain with structured output, falling back to raw JSON parsing on failure."""
+    result = chain.invoke(variables)
+    if result is not None:
+        return result
+
+    # Structured output failed — try invoking the LLM directly and parsing raw response
+    logger.warning("[%s] Structured output returned None, trying raw JSON fallback", chat_id)
+    prompt = chain.first  # the prompt template
+    llm = _extract_llm(chain)
+    messages = prompt.invoke(variables)
+    raw_response = llm.invoke(messages)
+    content = raw_response.content if hasattr(raw_response, "content") else str(raw_response)
+
+    # Extract JSON from the response (may be wrapped in markdown code blocks)
+    json_match = re.search(r"```(?:json)?\s*([\s\S]*?)```", content)
+    json_str = json_match.group(1).strip() if json_match else content.strip()
+
+    try:
+        data = json.loads(json_str)
+    except json.JSONDecodeError as exc:
+        logger.error("[%s] Raw JSON fallback: invalid JSON: %s. Content: %s", chat_id, exc, content[:500])
+        return None
+
+    # Inject chat_id if missing (raw LLM won't include it) and strip extra fields
+    if isinstance(data, dict):
+        data.setdefault("chat_id", chat_id)
+
+    try:
+        return model_class.model_validate(data)
+    except Exception as exc:
+        logger.error("[%s] Raw JSON fallback: validation failed: %s", chat_id, exc)
+        return None
 
 
 def format_chat_messages(messages: list[dict]) -> str:
@@ -52,18 +103,11 @@ def analyze_single_chat(chat: dict, llm) -> ChatAnalysis:
 
     analyze_chain = analyze_prompt | llm.with_structured_output(ChatAnalysis)
 
-    analysis = None
-    for attempt in range(MAX_RETRIES):
-        analysis = analyze_chain.invoke({
-            "chat_id": chat_id,
-            "chat_messages": chat_messages,
-        })
-        if analysis is not None:
-            break
-        logger.warning("[%s] Analysis returned None (attempt %d/%d)", chat_id, attempt + 1, MAX_RETRIES)
+    invoke_vars = {"chat_id": chat_id, "chat_messages": chat_messages}
+    analysis = _invoke_structured(analyze_chain, invoke_vars, ChatAnalysis, chat_id)
 
     if analysis is None:
-        raise RuntimeError(f"[{chat_id}] Analysis returned None after {MAX_RETRIES} attempts")
+        raise RuntimeError(f"[{chat_id}] Analysis failed — LLM could not produce structured output")
 
     # Force correct chat_id
     analysis.chat_id = chat_id
@@ -82,11 +126,12 @@ def analyze_single_chat(chat: dict, llm) -> ChatAnalysis:
 
     validate_chain = validate_prompt | llm.with_structured_output(AnalysisValidationResult)
 
-    validation = validate_chain.invoke({
+    validate_vars = {
         "chat_id": chat_id,
         "chat_messages": chat_messages,
         "analysis_json": analysis.model_dump_json(indent=2),
-    })
+    }
+    validation = _invoke_structured(validate_chain, validate_vars, AnalysisValidationResult, chat_id)
 
     if validation is None:
         logger.warning("[%s] Validation returned None, using initial analysis", chat_id)
