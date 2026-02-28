@@ -244,7 +244,7 @@ or refund). Only use cancellation as the main topic when Domain is refunds.
 etc. Written chat is not speech; keep it to normal written language.
 
 ### Agent Voice
-- Greet by name in first response using [CUSTOMER_NAME].
+- Greet by name in first response using the customer's fictional name.
 - Show varied empathy — NOT the same phrase every message. Mix: "I understand", \
 "That must be frustrating", "Let me look into this", "I can see how that's concerning".
 - Use contractions naturally ("I'll", "we've", "that's").
@@ -253,15 +253,17 @@ etc. Written chat is not speech; keep it to normal written language.
 in the required_entities.
 - Provide concrete next steps, not vague promises.
 
-### PII Placeholders (MANDATORY)
-Use these placeholders — NEVER invent real personal data:
-- [CUSTOMER_NAME] — customer's name
-- [CUSTOMER_EMAIL] — customer's email
-- [ORDER_ID] — order/transaction ID
-- [ACCOUNT_ID] — account identifier
-- [PHONE_NUMBER] — phone number
-- [DATE] — specific dates
-- [AMOUNT] — monetary amounts when referring to customer's specific transaction
+### Realistic Fake PII (MANDATORY)
+Generate realistic-looking but fictional personal data for each conversation. \
+NEVER use placeholder patterns like [CUSTOMER_NAME], [CUSTOMER_EMAIL], {{name}}, {name}, \
+or any bracketed/curly-braced tokens. Instead, invent believable fake data:
+- Customer name: use a realistic first name (e.g. "Sarah", "Mike", "Priya")
+- Email: use a realistic fake email (e.g. "sarah.jones82@gmail.com")
+- Order/transaction ID: use a realistic alphanumeric ID (e.g. "ORD-29481", "#TXN-8834")
+- Account ID: use a realistic ID (e.g. "ACC-55021")
+- Phone number: use a realistic fake number (e.g. "+1 (555) 234-8891")
+- Dates: use specific realistic dates (e.g. "February 15th", "last Tuesday")
+- Amounts: use specific dollar amounts (e.g. "$14.99", "$49.00")
 
 ### Identity Verification
 The agent MUST verify the customer's identity early in the conversation (typically 2nd agent \
@@ -325,9 +327,10 @@ If the chat is mainly about canceling subscription but Domain is not refunds, se
 conversation exist in the valid_entities list.
 7. No hallucinated entity names.
 
-### PII Placeholders (pii_placeholders_used)
-8. Customer personal data uses [CUSTOMER_NAME], [CUSTOMER_EMAIL], [ORDER_ID], etc.
-9. No real-looking names, emails, or IDs are used.
+### Realistic Fake PII (pii_placeholders_used)
+8. Customer personal data uses realistic fictional names, emails, and IDs — NOT placeholder \
+patterns like [CUSTOMER_NAME], [CUSTOMER_EMAIL], {{name}}, {name}, or any bracketed/curly-braced tokens.
+9. All names, emails, order IDs, and other personal data look realistic and natural in the conversation.
 
 ### Persona Match (persona_match)
 9. Customer's communication style matches the brief's communication_style description.
