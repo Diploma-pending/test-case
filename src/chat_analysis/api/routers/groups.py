@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 from chat_analysis.analysis.service import analyze_single_chat
 from chat_analysis.api import storage
 from chat_analysis.api.models import (
+    BusinessContext,
+    BusinessContextItem,
     ChatSummary,
     GroupAnalyzeResponse,
     GroupChatsResponse,
@@ -27,7 +29,7 @@ from chat_analysis.context_gathering.service import (
     resolve_context,
 )
 from chat_analysis.core.config import get_llm
-from chat_analysis.core.security import sanitize_text
+from chat_analysis.core.security import load_domain_context, sanitize_text
 from chat_analysis.generation.models import CaseType, ChatScenario
 from chat_analysis.generation.service import generate_single_chat, structure_product_context
 from chat_analysis.models import ChatDomain
@@ -294,6 +296,21 @@ async def _run_analyze_group(group_id: str) -> None:
     await asyncio.to_thread(_analyze_group_sync, group_id)
 
 
+def _business_context_label(value: str) -> str:
+    """Human-readable label for a business context value (e.g. maxbeauty -> MaxBeauty)."""
+    return value.replace("_", " ").title()
+
+
+@router.get("/businesses", response_model=list[BusinessContextItem])
+async def list_businesses() -> list[BusinessContextItem]:
+    """Return available preset business contexts from domains/ for UI dropdown (excludes CUSTOM)."""
+    return [
+        BusinessContextItem(id=bc.value, label=_business_context_label(bc.value))
+        for bc in BusinessContext
+        if bc != BusinessContext.CUSTOM
+    ]
+
+
 @router.get("", response_model=list[GroupSummary])
 async def list_groups() -> list[GroupSummary]:
     """Return all groups sorted by creation time (newest first)."""
@@ -303,15 +320,19 @@ async def list_groups() -> list[GroupSummary]:
 @router.post("", status_code=202, response_model=GroupCreateResponse)
 async def create_group(
     background_tasks: BackgroundTasks,
-    topic: str = Form(...),
+    topic: str = Form(..., description="Display name for the group"),
+    business: Optional[BusinessContext] = Form(
+        None,
+        description="Preset Scalara business context from domains/, or CUSTOM for your own context (file/URL/topic).",
+    ),
     context_file: Union[UploadFile, str, None] = File(None),
     website_url: Optional[str] = Form(None),
     num_chats: int = Form(default=8),
 ) -> GroupCreateResponse:
     """Create a new chat group from a topic, then generate chats in the background.
 
-    Optionally provide context_file (.md), website_url, or both.
-    If neither is provided, context is auto-resolved from domain files or LLM knowledge.
+    Set business to a preset (e.g. brighterly, dressly) to use that context from domains/.
+    Set business to CUSTOM or omit to use your own context: context_file (.md), website_url, or topic (resolved from domain file or LLM).
     """
     # Swagger UI sends an empty string when no file is selected; treat it as None
     if isinstance(context_file, str):
@@ -337,7 +358,33 @@ async def create_group(
 
     group_id = str(uuid.uuid4())
 
-    # Determine initial status and routing
+    # Preset business: load context from domains/<value>.md only
+    use_preset = business is not None and business != BusinessContext.CUSTOM
+    if use_preset:
+        context_str = load_domain_context(business.value)
+        if context_str is None:
+            raise HTTPException(
+                status_code=422,
+                detail=f'Context file for business "{business.value}" not found.',
+            )
+        initial_status = "generating"
+        group_data = {
+            "group_id": group_id,
+            "topic": topic,
+            "status": initial_status,
+            "num_chats": num_chats,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "website_url": None,
+            "context_gathering_error": None,
+            "context_source": "domain_file",
+            "business": business.value,
+        }
+        storage.save_group(group_id, group_data)
+        storage.save_context(group_id, context_str)
+        background_tasks.add_task(_run_generate_group, group_id, topic, context_str, num_chats)
+        return GroupCreateResponse(group_id=group_id, status=initial_status, num_chats=num_chats)
+
+    # CUSTOM or None: existing behaviour (file, URL, or resolve from topic)
     has_file = context_file is not None
     has_url = website_url is not None
     if has_url:
@@ -361,6 +408,7 @@ async def create_group(
         "website_url": website_url,
         "context_gathering_error": None,
         "context_source": None,
+        "business": BusinessContext.CUSTOM.value if business == BusinessContext.CUSTOM else None,
     }
     storage.save_group(group_id, group_data)
 
@@ -443,4 +491,5 @@ async def get_group_chats(group_id: str) -> GroupChatsResponse:
         chats=chat_summaries,
         website_url=group_data.get("website_url"),
         context_gathering_error=group_data.get("context_gathering_error"),
+        business=group_data.get("business"),
     )

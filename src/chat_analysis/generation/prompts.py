@@ -39,6 +39,24 @@ GENERATE_BRIEF_SYSTEM_TEMPLATE = """\
 You are a scenario designer for support chat simulations. Given structured product context \
 and scenario parameters, create a detailed scenario brief that will guide a conversation writer.
 
+The dataset must include conversations across different support scenario types. Each chat \
+must be about a topic that matches the Domain parameter — SCENARIOS MUST VARY. Do NOT \
+default to "customer wants to cancel subscription" for every conversation.
+
+**Domain-specific topics (use the one matching the Domain parameter):**
+- **payment_issues**: Failed payment, card declined, duplicate charge, wrong amount charged, \
+billing cycle question, payment method update, invoice missing — NOT cancellation as main topic.
+- **technical_errors**: App crash, feature not working, login error, sync failure, compatibility \
+issue, bug report, "something is broken" — concrete technical problem.
+- **account_access**: Can't log in, forgot password, account locked, wrong email, merge accounts, \
+profile/email change, 2FA issue — access or identity problem.
+- **tariff_questions**: Which plan to choose, upgrade/downgrade, feature comparison, trial ending, \
+price change, plan limits — information or change request, NOT cancel.
+- **refunds**: Refund request, return product, cancel and get money back, dispute charge — only \
+use cancellation/refund as main topic when Domain is refunds.
+
+If Domain is NOT refunds, the customer's main request must NOT be "I want to cancel my subscription."
+
 ## Structured Product Context
 {structured_context}
 
@@ -129,6 +147,15 @@ WRITE_CHAT_SYSTEM_TEMPLATE = """\
 You are a support chat conversation writer. Write a realistic customer-agent conversation \
 following the structured context and scenario brief provided.
 
+Support scenario types — the conversation topic MUST match the given Domain. Vary the topic:
+- payment_issues: failed payment, duplicate charge, wrong amount, billing question (NOT cancel)
+- technical_errors: app/feature broken, error message, sync/login bug (NOT cancel)
+- account_access: can't log in, password reset, account locked, profile change (NOT cancel)
+- tariff_questions: which plan, upgrade/downgrade, trial, pricing (NOT cancel)
+- refunds: refund request, return, cancel and get money back (only here use cancellation)
+
+**Do NOT write about subscription cancellation or "I want to cancel" unless Domain is refunds.**
+
 ## Structured Product Context
 {structured_context}
 
@@ -170,6 +197,51 @@ over-explains, asks same question differently
 - P6 (first-time-user): Vague ("its not working"), gives wrong info, "where do i even find that?"
 - P7 (returning-complainer): Emotional, "again??", "this is the 3rd time", wild language
 - P8 (business-professional): Starts formal, gets casual in follow-ups, abbreviates later
+**Mandatory realism techniques (use at least 3-4 per conversation):**
+- Typos and misspellings: "recieved", "cant", "doesnt", "waht", "teh", "acount"
+- Missing or inconsistent capitalization: "hi", "i cant log in", "my Order isnt showing"
+- Missing punctuation: "ok so i tried that and it didnt work" (no period/comma)
+- Incomplete sentences or fragments: "yeah but the thing is", "so now what"
+- Run-on sentences without commas: "I tried resetting my password but it says error and I \
+dont know what to do now"
+- Abbreviations and chat-speak: "pls", "thx", "idk", "bc", "rn", "u", "ur"
+- Vague first messages that don't give all info: "hi my account isnt working", \
+"something went wrong with my payment"
+- Starting with just the problem, no greeting: "i got charged twice"
+- Extra short responses: "ok", "sure", "yeah", "done", "nope still broken"
+- Ellipsis overuse: "so I was trying to login... and it just... doesn't work"
+- Strong reactions in words (not filler sounds): "seriously??", "this is ridiculous", "come on"
+
+**Per-persona specifics:**
+- P1 (frustrated-verbose): Long messages, repeats problem, CAPS ("I ALREADY told you"), \
+run-on sentences, skips punctuation when angry.
+- P2 (polite-concise): Very short replies ("ok thanks", "got it", "that worked"), \
+may skip capitalization.
+- P3 (tech-savvy-impatient): Jargon, abbreviations, no greeting, "I already tried X", \
+single-line follow-ups like "nope" or "same error".
+- P4 (elderly-confused): Over-explains, misuses terms ("the google page"), partial sentences, \
+ellipses, asks same thing rephrased.
+- P5 (passive-aggressive): Short clipped responses when unhappy, loaded phrases, \
+"Fine.", "Sure, if that's how it works."
+- P6 (first-time-user): Vague descriptions ("its not working"), gives wrong/irrelevant info, \
+"where do i even find that?", doesn't know what the agent is asking.
+- P7 (returning-complainer): Emotional, "again??", "this is the 3rd time", \
+exaggerates wait times, references past bad experiences.
+- P8 (business-professional): More structured but still has abbreviated follow-ups, \
+occasional typo, drops formality as conversation progresses.
+
+**ANTI-PATTERNS — NEVER do these in customer messages:**
+- Do NOT write perfectly punctuated, fully grammatical sentences for every customer message.
+- Do NOT start every customer message with a polite greeting.
+- Do NOT have the customer provide all relevant info (order ID, email, plan name) upfront \
+unless the persona is P8.
+- Do NOT use sophisticated vocabulary or complex sentence structures.
+- Do NOT make every customer message the same length — vary from 3 words to 3 sentences.
+- Do NOT default to "I want to cancel my subscription" — the customer's request MUST match \
+the Domain in the scenario brief (payment issue, technical problem, account access, tariff question, \
+or refund). Only use cancellation as the main topic when Domain is refunds.
+- Do NOT use filler sounds or non-word interjections: no "ugh", "hm", "uh-huh", "um", "ah", "eh" \
+etc. Written chat is not speech; keep it to normal written language.
 
 ### Agent Voice
 - Greet by name in first response using [CUSTOMER_NAME].
@@ -242,14 +314,20 @@ Validate the conversation against the structured context, scenario brief, and sc
 3. Minimum 4 messages.
 4. Case type outcome matches: resolved/escalated/unresolved.
 
+### Topic/Domain Match (is_valid = False if fail)
+5. The conversation's main topic MUST match the Domain. If Domain is payment_issues, technical_errors, \
+account_access, or tariff_questions, the customer's primary request must NOT be "cancel my subscription" \
+or "I want to unsubscribe". Only when Domain is refunds may the main topic be cancellation/refund. \
+If the chat is mainly about canceling subscription but Domain is not refunds, set is_valid=False.
+
 ### Entity Accuracy (entity_accuracy)
-5. All product names, plan names, features, error codes, and departments mentioned in the \
+6. All product names, plan names, features, error codes, and departments mentioned in the \
 conversation exist in the valid_entities list.
-6. No hallucinated entity names.
+7. No hallucinated entity names.
 
 ### PII Placeholders (pii_placeholders_used)
-7. Customer personal data uses [CUSTOMER_NAME], [CUSTOMER_EMAIL], [ORDER_ID], etc.
-8. No real-looking names, emails, or IDs are used.
+8. Customer personal data uses [CUSTOMER_NAME], [CUSTOMER_EMAIL], [ORDER_ID], etc.
+9. No real-looking names, emails, or IDs are used.
 
 ### Persona Match (persona_match)
 9. Customer's communication style matches the brief's communication_style description.
@@ -268,6 +346,20 @@ read like polished writing rather than real chat typing, set persona_match=False
 16. If error plan is non-empty: each planned error appears in the conversation.
 17. If error plan is empty: agent is professional and accurate throughout.
 18. Errors feel natural, not forced.
+10. Customer's communication style matches the assigned persona.
+11. Message length and vocabulary are consistent with the persona.
+12. Customer messages feel like real human typing — they should contain imperfections \
+(typos, missing punctuation, incomplete sentences, vague descriptions, abbreviations). \
+If customer messages are all perfectly structured and grammatically correct, set persona_match=False.
+
+### Emotional Arc (emotional_arc_match)
+13. Customer's emotional progression matches the brief's emotional_arc.
+14. If hidden_dissatisfaction: customer ends with polite/neutral tone despite unresolved issue.
+
+### Agent Errors (agent_errors_as_planned)
+15. If error plan is non-empty: each planned error appears in the conversation.
+16. If error plan is empty: agent is professional and accurate throughout.
+17. Errors feel natural, not forced.
 
 ### Overall
 - Set is_valid=True only if structural checks pass AND no critical issues in other checks.
