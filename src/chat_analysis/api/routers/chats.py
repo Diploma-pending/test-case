@@ -21,9 +21,7 @@ async def get_chat_detail(group_id: str, chat_id: str) -> ChatDetailResponse:
 
     return ChatDetailResponse(
         chat_id=chat_data["chat_id"],
-        case_type=chat_data["case_type"],
         status=chat_data["status"],
         messages=chat_data.get("messages"),
-        scenario=chat_data.get("scenario"),
         analysis=chat_data.get("analysis"),
     )

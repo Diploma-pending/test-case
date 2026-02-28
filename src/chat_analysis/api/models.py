@@ -34,7 +34,6 @@ class GroupAnalyzeResponse(BaseModel):
 
 class ChatSummary(BaseModel):
     chat_id: str
-    case_type: str
     status: str
     analysis: Optional[dict[str, Any]] = None
 
@@ -71,8 +70,6 @@ class GroupSummary(BaseModel):
 
 class ChatDetailResponse(BaseModel):
     chat_id: str
-    case_type: str
     status: str
     messages: Optional[list[dict[str, Any]]] = None
-    scenario: Optional[dict[str, Any]] = None
     analysis: Optional[dict[str, Any]] = None

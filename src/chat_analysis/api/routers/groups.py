@@ -98,10 +98,8 @@ def _generate_group_sync(group_id: str, topic: str, context_str: str, num_chats:
         chat_id = f"chat_{i + 1:03d}"
         storage.save_chat(group_id, chat_id, {
             "chat_id": chat_id,
-            "case_type": scenario.case_type.value,
             "status": "pending",
             "messages": None,
-            "scenario": None,
             "analysis": None,
         })
 
@@ -122,10 +120,8 @@ def _generate_group_sync(group_id: str, topic: str, context_str: str, num_chats:
                 )
                 storage.save_chat(group_id, chat_id, {
                     "chat_id": chat_id,
-                    "case_type": scenario.case_type.value,
                     "status": "generated",
                     "messages": [m.model_dump() for m in chat.messages],
-                    "scenario": scenario.model_dump(),
                     "analysis": None,
                 })
                 succeeded += 1
@@ -475,7 +471,6 @@ async def get_group_chats(group_id: str) -> GroupChatsResponse:
     chat_summaries = [
         ChatSummary(
             chat_id=c["chat_id"],
-            case_type=c["case_type"],
             status=c["status"],
             analysis=c.get("analysis"),
         )
