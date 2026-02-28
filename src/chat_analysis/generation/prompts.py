@@ -69,45 +69,84 @@ If Domain is NOT refunds, the customer's main request must NOT be "I want to can
 - Has logical errors: {has_logical_errors}
 
 ## Persona Selection Rules
-Choose ONE persona that fits the scenario naturally. Each persona has a distinct \
-typing style — real customers do NOT write perfectly:
-- P1 (frustrated-verbose): Long messages, repeats the problem, CAPS for emphasis, run-on sentences, \
-sometimes skips punctuation when angry. Good for: escalated, unresolved cases.
-- P2 (polite-concise): Short messages, sometimes just a few words ("ok thanks", "got it"). \
-May not capitalize first letter. Good for: simple_resolved, any clean case.
-- P3 (tech-savvy-impatient): Uses jargon and abbreviations ("btw", "fyi"), terse follow-ups, \
-may skip greetings entirely. Good for: technical_errors domain.
-- P4 (elderly-confused): Misuses terms, asks same question differently, over-explains, \
-sometimes types in partial sentences or adds ellipses "I tried to do the thing...". \
-Good for: account_access, tariff_questions.
-- P5 (passive-aggressive): Polite surface but loaded phrasing, may write short clipped responses \
-when unhappy. REQUIRED for: hidden_dissatisfaction=True.
-- P6 (first-time-user): Vague descriptions ("it's not working"), unsure what info to provide, \
-may ask unrelated questions mid-conversation. Good for: tariff_questions, account_access.
-- P7 (returning-complainer): References past issues, writes emotionally, may exaggerate, \
-uses "again" and "still" frequently. Good for: refunds, payment_issues.
-- P8 (business-professional): More formal but still human — may abbreviate in follow-ups, \
-mentions business impact. Good for: payment_issues, technical_errors.
+Choose ONE persona that fits the scenario naturally. Each persona defines a baseline \
+personality and emotional tendency — NOT a rigid typing format. Real people are inconsistent: \
+they capitalize sometimes and not others, use punctuation in some messages and skip it in others, \
+write short messages sometimes and long ones other times — all within the same conversation.
 
-## Communication Style Rules
-Every chat must have a UNIQUE customer writing style. The communication_style field should be a \
-specific, vivid description of how THIS customer types — not a generic label. \
-Vary these dimensions across chats:
-- Capitalization: all lowercase / normal / random caps / occasional CAPS on key words when upset
-- Punctuation: no punctuation at all / excessive punctuation ("???", "!!") / ellipsis heavy ("so...")
-- Grammar: broken grammar with typos / mostly correct / wild misspellings
-- Message length: one-word replies / medium / walls of text
-- Greeting style: no greeting at all / just "hi" / "Hello, I have a question"
-- Vocabulary: slang and abbreviations ("pls", "thx", "idk", "u") / plain words / formal language
-- Info-giving: vague and forces agent to ask follow-ups / dumps everything at once
+The persona defines WHO the customer is and HOW THEY THINK, not a mechanical typing pattern:
+- P1 (frustrated-verbose): Emotionally invested, needs to vent. Writes longer messages when upset, \
+shorter when waiting for answers. May start somewhat composed and get messier as frustration builds. \
+Uses emphasis on key words when emotional ("I ALREADY did that") but writes normally otherwise. \
+Good for: escalated, unresolved cases.
+- P2 (polite-concise): Doesn't want to make a fuss. Gets to the point quickly, grateful when \
+helped. Some messages are just 2-3 words. Might write one longer message when explaining the \
+initial problem, then switch to short follow-ups. Good for: simple_resolved, any clean case.
+- P3 (tech-savvy-impatient): Knows what they're talking about, doesn't want to be walked through \
+basics. Jumps straight to the problem, provides technical detail upfront. Gets terse when asked \
+to do something they've already tried. Good for: technical_errors domain.
+- P4 (elderly-confused): Genuinely trying but struggling with the product. Over-explains because \
+they're unsure which detail matters. May circle back to the same worry phrased differently. \
+Sometimes starts a thought and trails off. Good for: account_access, tariff_questions.
+- P5 (passive-aggressive): Seems cooperative on the surface but is clearly dissatisfied underneath. \
+Gets more clipped and pointed as the conversation goes on. Uses politeness as a weapon — \
+"Sure, whatever you say" REQUIRED for: hidden_dissatisfaction=True.
+- P6 (first-time-user): Genuinely doesn't know how things work. Describes symptoms, not causes \
+("it's not working" rather than "I'm getting error 404"). May answer the wrong question or give \
+irrelevant info because they don't understand what the agent needs. Good for: tariff_questions, \
+account_access.
+- P7 (returning-complainer): Has history with support and brings it up. Emotionally loaded from \
+the start. References past experiences and compares. Feels unheard and says so. \
+Good for: refunds, payment_issues.
+- P8 (business-professional): Organized, wants efficient resolution. Opens with context. \
+May get less formal as the conversation continues, especially if things drag on. Mentions \
+business impact when relevant. Good for: payment_issues, technical_errors.
 
-Example communication_style values (each chat should get something different):
-- "all lowercase, no punctuation, skips greetings, very short replies like 'yeah' or 'nope'"
-- "writes in long run-on sentences without commas, uses caps when frustrated, lots of typos"
-- "polite but vague, doesn't give details until asked, uses ellipsis a lot"
-- "formal opening then gets increasingly casual, abbreviations in follow-ups"
-- "mobile typing style, one-word answers, abbreviations like 'ur' and 'bc' and 'rn'"
-- "emotional and scattered, mixes complaints with backstory, uses '??' and '!!'"
+## Communication Style Rules — CRITICAL
+The communication_style field must describe a REALISTIC, INCONSISTENT human typing pattern. \
+Real people in chat do NOT maintain a uniform style — they shift based on what they're saying \
+and how they're feeling in that moment.
+
+**Key principle: style follows emotion and content, not a fixed template.**
+- A person who writes lowercase might capitalize when quoting something or when they're \
+extra frustrated: "i tried resetting it and it says ACCESS DENIED"
+- A person who normally punctuates may drop punctuation when they're typing fast or upset
+- Message length varies with content: short for confirmations ("yeah thats me"), \
+long when explaining a problem
+- Most people are somewhere in the middle — not perfect grammar, not total chaos. \
+Occasional typo, occasional missing comma, occasional correct sentence.
+
+**The communication_style should describe a PERSON, not a formatting rule. Include:**
+1. Their baseline typing tendency (how they type when calm/neutral)
+2. How their typing shifts when frustrated, confused, or relieved
+3. One or two specific quirks that make them feel individual
+
+Example communication_style values:
+- "Types mostly normally with occasional missing capitals and commas. When frustrated, \
+sentences run together and she drops punctuation entirely. Sometimes starts a message with \
+'like' or 'so'. Doesn't always greet."
+- "Generally writes in short messages, decent grammar but not perfect. Gets more terse and \
+clipped when annoyed — responses shrink to 3-5 words. Uses 'lol' and 'tbh' occasionally. \
+Capitalizes normally except sometimes the first word."
+- "Writes longer messages with decent punctuation when explaining something, but follow-ups \
+are very short ('ok', 'done', 'yep still broken'). Occasional typo ('teh', 'acount'). \
+Starts formal and gets more casual as conversation goes on."
+- "Tends to write in several short messages in a row instead of one long one. Mixes \
+capitalized and lowercase randomly (not consistently lowercase). Uses '??' when confused \
+and '!!' when frustrated. Spells most things right but drops apostrophes ('dont', 'cant')."
+- "Mostly normal writing, nothing extreme. Skips greeting sometimes. Asks follow-up questions \
+in the same message as answering the agent's question. When unhappy, gets sarcastic rather \
+than shouty."
+- "Decent grammar overall but writes fast so there are occasional typos and missing words. \
+Uses ellipsis when uncertain or trailing off, but not excessively (1-2 times per conversation, \
+not every message). Gets more formal when demanding something ('I would like a refund')."
+
+**ANTI-PATTERNS for communication_style — NEVER generate these:**
+- "all lowercase, no punctuation" — too uniform, no human varies this little
+- "uses ellipsis in every message" — one quirk does not make a person
+- "writes in ALL CAPS" — nobody does this for an entire conversation
+- "perfect grammar and spelling" — no customer in chat writes perfectly
+- Any description that implies every single message will follow the same pattern
 
 ## Emotional Arc Rules
 - simple_resolved: mild concern → reassured → satisfied (3-5 turns)
@@ -169,79 +208,158 @@ Support scenario types — the conversation topic MUST match the given Domain. V
 
 ## Writing Rules
 
-### Customer Voice — CRITICAL
-The customer's writing style is defined in the scenario brief's communication_style field. \
-Follow it exactly. Each chat has a DIFFERENT customer voice — do NOT use a uniform style.
+### Customer Voice — THE MOST IMPORTANT SECTION
 
-**Hard rules for ALL customer messages:**
-- NEVER end a customer message with a period/dot. Real people don't do that in chat. \
-End with nothing, with "?", with "!", with "...", or just trail off.
-- NEVER write all customer messages as perfectly grammatical, well-structured sentences. \
-Customers are real people typing fast in a chat widget.
-- NEVER write entire customer messages in ALL CAPS. Caps are only for occasional emphasis \
-on single words or short phrases ("I ALREADY tried that", "this is NOT working"). \
-The rest of the message must be normal case or lowercase.
-- Vary message lengths within the same conversation — mix very short ("ok", "yeah", "nope") \
-with longer messages when the customer explains their problem.
-- The customer does NOT always provide all info upfront. Often the agent must ask for details.
+**Guiding Principle: Write like a real person in a chat widget, not a character performing \
+a typing style.**
 
-**Persona writing guides:**
-- P1 (frustrated-verbose): Long run-on sentences, CAPS only on key words for emphasis \
-("I ALREADY told you", "this is NOT okay"), skips punctuation when angry, repeats the problem
-- P2 (polite-concise): Very short ("ok thanks", "got it"), may skip capitalization
-- P3 (tech-savvy-impatient): No greeting, abbreviations ("btw", "fyi"), terse follow-ups \
-like "nope" or "same error"
-- P4 (elderly-confused): Misuses terms, ellipses everywhere ("I tried the thing..."), \
-over-explains, asks same question differently
-- P5 (passive-aggressive): Clipped responses, loaded phrasing ("Sure, if that's how it works")
-- P6 (first-time-user): Vague ("its not working"), gives wrong info, "where do i even find that?"
-- P7 (returning-complainer): Emotional, "again??", "this is the 3rd time", wild language
-- P8 (business-professional): Starts formal, gets casual in follow-ups, abbreviates later
-**Mandatory realism techniques (use at least 3-4 per conversation):**
-- Typos and misspellings: "recieved", "cant", "doesnt", "waht", "teh", "acount"
-- Missing or inconsistent capitalization: "hi", "i cant log in", "my Order isnt showing"
-- Missing punctuation: "ok so i tried that and it didnt work" (no period/comma)
-- Incomplete sentences or fragments: "yeah but the thing is", "so now what"
-- Run-on sentences without commas: "I tried resetting my password but it says error and I \
-dont know what to do now"
-- Abbreviations and chat-speak: "pls", "thx", "idk", "bc", "rn", "u", "ur"
-- Vague first messages that don't give all info: "hi my account isnt working", \
-"something went wrong with my payment"
-- Starting with just the problem, no greeting: "i got charged twice"
-- Extra short responses: "ok", "sure", "yeah", "done", "nope still broken"
-- Ellipsis overuse: "so I was trying to login... and it just... doesn't work"
-- Strong reactions in words (not filler sounds): "seriously??", "this is ridiculous", "come on"
+Study the communication_style in the scenario brief. It describes a PERSON — their habits, \
+their quirks, how they shift when emotional. Your job is to channel that person, not to \
+mechanically apply formatting rules.
 
-**Per-persona specifics:**
-- P1 (frustrated-verbose): Long messages, repeats problem, CAPS ("I ALREADY told you"), \
-run-on sentences, skips punctuation when angry.
-- P2 (polite-concise): Very short replies ("ok thanks", "got it", "that worked"), \
-may skip capitalization.
-- P3 (tech-savvy-impatient): Jargon, abbreviations, no greeting, "I already tried X", \
-single-line follow-ups like "nope" or "same error".
-- P4 (elderly-confused): Over-explains, misuses terms ("the google page"), partial sentences, \
-ellipses, asks same thing rephrased.
-- P5 (passive-aggressive): Short clipped responses when unhappy, loaded phrases, \
-"Fine.", "Sure, if that's how it works."
-- P6 (first-time-user): Vague descriptions ("its not working"), gives wrong/irrelevant info, \
-"where do i even find that?", doesn't know what the agent is asking.
-- P7 (returning-complainer): Emotional, "again??", "this is the 3rd time", \
-exaggerates wait times, references past bad experiences.
-- P8 (business-professional): More structured but still has abbreviated follow-ups, \
-occasional typo, drops formality as conversation progresses.
+**HOW REAL PEOPLE ACTUALLY TYPE IN SUPPORT CHAT:**
 
-**ANTI-PATTERNS — NEVER do these in customer messages:**
-- Do NOT write perfectly punctuated, fully grammatical sentences for every customer message.
-- Do NOT start every customer message with a polite greeting.
-- Do NOT have the customer provide all relevant info (order ID, email, plan name) upfront \
-unless the persona is P8.
-- Do NOT use sophisticated vocabulary or complex sentence structures.
-- Do NOT make every customer message the same length — vary from 3 words to 3 sentences.
-- Do NOT default to "I want to cancel my subscription" — the customer's request MUST match \
-the Domain in the scenario brief (payment issue, technical problem, account access, tariff question, \
-or refund). Only use cancellation as the main topic when Domain is refunds.
-- Do NOT use filler sounds or non-word interjections: no "ugh", "hm", "uh-huh", "um", "ah", "eh" \
-etc. Written chat is not speech; keep it to normal written language.
+Real chat messages are INCONSISTENT. The same person, in the same conversation, will:
+- Capitalize some messages and not others
+- Use punctuation in one message and skip it in the next
+- Write a 3-word reply, then a 40-word explanation, then another short one
+- Spell a word right in one message and wrong in another
+- Start casual, get more intense mid-conversation, then go back to short replies
+- Mix properly formed sentences with fragments in the same message
+
+This inconsistency IS the realism. If every message follows the same pattern, it reads \
+as a bot, not a human.
+
+**STYLE-SHIFTS WITHIN A CONVERSATION (mandatory — every chat must show variation):**
+
+People's typing changes with their emotional state and what they're communicating:
+
+When EXPLAINING A PROBLEM (longer, more detail):
+  "so basically I tried to log in this morning and it kept saying my password was wrong \
+but I know its the right one because I just changed it last week"
+
+When ANSWERING A QUESTION (short, direct):
+  "yeah thats the one"
+  "sarah.jones82@gmail.com"
+  "no I already tried that"
+
+When FRUSTRATED (emphasis appears, punctuation gets erratic):
+  "I already DID that, it doesnt work"
+  "are you serious right now??"
+  "this is the third time ive contacted you about this and nobody seems to care"
+
+When CONFIRMING OR ACKNOWLEDGING (minimal effort):
+  "ok"
+  "got it"
+  "sure"
+  "oh ok that makes sense"
+
+When ASKING A QUESTION (usually mid-length):
+  "wait so does that mean I have to pay again?"
+  "how long does that take"
+  "where do I find that"
+
+When GIVING PERSONAL INFO (straightforward, no embellishment):
+  "mike.torres@gmail.com"
+  "the order number is ORD-29481"
+
+**HOW TO HANDLE EMPHASIS AND CAPITALIZATION:**
+
+Most real people type in normal or slightly sloppy case. They do NOT type in all lowercase \
+and they do NOT type in all caps. Here is what real emphasis looks like:
+
+GOOD — natural emphasis patterns:
+  "I already tried that and it STILL doesnt work"        ← one word caps
+  "this is NOT what I was told last time"                 ← one word caps
+  "but I paid for the premium plan, why cant I access it" ← no caps needed, frustration \
+                                                             is clear from words
+  "seriously?? I just want this fixed"                    ← punctuation for emphasis
+  "That doesn't make any sense"                           ← normal capitalization is fine too
+  "ok so what am I supposed to do now"                    ← lowercase when typing fast
+
+BAD — robotic patterns:
+  "i was charged for my account and i dont understand why i was charged and i want a refund \
+and i dont think this is right"  ← all lowercase every word every message = robotic
+  "I DONT UNDERSTAND WHY THIS KEEPS HAPPENING"  ← full caps message = unrealistic
+  "I... I dont know... that feels wrong... I dont want to..."  ← ellipsis on every clause = \
+caricature
+
+**THE ELLIPSIS RULE:**
+Real people use "..." occasionally — to trail off, to pause, or to express uncertainty. \
+But not more than 1-2 times in an ENTIRE conversation. If a person uses ellipsis, it should \
+be a moment, not a constant pattern. Example of correct use:
+  Message 3: "I'm not sure... is there another option?"
+  Message 7: "ok fine"  ← no ellipsis, they moved on
+
+Example of INCORRECT use:
+  Message 1: "hi... I have a problem..."
+  Message 3: "I tried that... it didn't work..."
+  Message 5: "I don't know... maybe... I should just give up..."
+  ← This is a caricature. Nobody types like this.
+
+**THE LOWERCASE RULE:**
+Some people tend toward lowercase in chat, but even they capitalize inconsistently. \
+If a customer's style is more casual/lowercase:
+
+GOOD — natural lowercase-ish typing:
+  Message 1: "hi I got charged twice for my subscription"           ← capitalized I and first word
+  Message 2: "yeah its sarah.jones82@gmail.com"                     ← lowercase start
+  Message 3: "I already checked that and theres two charges on Feb 15th"  ← mix of caps and lowercase
+  Message 4: "ok but why"                                           ← short, lowercase
+  Message 5: "this happened last month too and nobody fixed it"     ← lowercase
+  Message 6: "Fine. Whatever"                                       ← capitalized when annoyed
+
+BAD — uniformly lowercase:
+  Message 1: "i got charged twice for my subscription"
+  Message 2: "yeah its sarah.jones82@gmail.com"
+  Message 3: "i already checked and theres two charges"
+  Message 4: "ok but why"
+  Message 5: "this happened last month too"
+  Message 6: "fine whatever"
+  ← Every single message starts lowercase. Real people aren't this consistent.
+
+**HARD RULES for customer messages:**
+1. NEVER end a customer message with a period/dot — no exceptions. End with nothing, "?", "!", \
+"...", or just trail off. Pointed short replies expressing displeasure must also drop the dot: \
+write "Fine" or "Sure, if that's the policy" not "Fine." or "Sure."
+2. NEVER write ALL customer messages in uniform lowercase. Mix it up.
+3. NEVER write ALL customer messages in uniform proper case. Mix it up.
+4. NEVER write a full customer message in ALL CAPS. Caps are for 1-3 words of emphasis only.
+5. NEVER use ellipsis (...) in more than 2 customer messages per conversation.
+6. NEVER use filler sounds: no "ugh", "hm", "uh-huh", "um", "ah", "eh". \
+This is written chat, not speech.
+7. At least ONE customer message must be 5 words or fewer (a short reply like "ok", \
+"yeah thats me", "no still broken").
+8. At least ONE customer message must be 15+ words (when explaining the problem or venting).
+9. Typos and imperfections should appear in 30-50% of customer messages, not all of them. \
+Real people type some messages correctly and others sloppily.
+10. The customer's typing style MUST visibly shift at least once — getting sloppier when \
+frustrated, getting shorter when just confirming, getting more formal when demanding something.
+
+**Per-persona guidance (tendencies, not rigid rules):**
+- P1 (frustrated-verbose): TENDENCY toward longer messages and emphasis when upset. But still \
+sends short confirmations ("yeah", "no") when answering simple questions. Emphasis comes \
+from words and occasional CAPS on 1-2 words, not from formatting.
+- P2 (polite-concise): TENDENCY toward short, cooperative messages. But their first message \
+explaining the problem might be medium-length. "ok thanks" and "got it" are natural for them.
+- P3 (tech-savvy-impatient): TENDENCY to be direct and skip pleasantries. Provides technical \
+detail upfront. Gets terse ("same error", "nope") when asked to repeat steps. May use \
+abbreviations but not in every message.
+- P4 (elderly-confused): TENDENCY to over-explain and circle back. Some messages are longer \
+because they're trying to make sure the agent understands. May write a partial thought. \
+Uses ellipsis once or twice (not every message). Sometimes starts mid-thought.
+- P5 (passive-aggressive): TENDENCY toward pointed brevity when unhappy. "Ok" \
+"Sure, if that's the policy" "I see" But their first message might be perfectly normal — \
+the passive aggression builds as dissatisfaction grows.
+- P6 (first-time-user): TENDENCY to be vague ("its not working") and confused by agent \
+questions. May give irrelevant info. Some messages are uncertain, others are just attempts \
+to answer what they were asked.
+- P7 (returning-complainer): TENDENCY to reference past issues and write emotionally. \
+"this is the third time" / "last time the agent told me X". Mixes emotional venting with \
+actual problem description.
+- P8 (business-professional): TENDENCY to be organized early on, giving context and details. \
+As conversation continues, may get more casual — shorter replies, less formality. If things \
+drag on, shows impatience through directness rather than shouting.
 
 ### Agent Voice
 - Greet by name in first response using the customer's fictional name.
@@ -255,7 +373,8 @@ in the required_entities.
 
 ### Realistic Fake PII (MANDATORY)
 Generate realistic-looking but fictional personal data for each conversation. \
-NEVER use placeholder patterns like [CUSTOMER_NAME], [CUSTOMER_EMAIL], or any bracketed/curly-braced placeholder tokens. Instead, invent believable fake data:
+NEVER use placeholder patterns like [CUSTOMER_NAME], [CUSTOMER_EMAIL], or any \
+bracketed/curly-braced placeholder tokens. Instead, invent believable fake data:
 - Customer name: use a realistic first name (e.g. "Sarah", "Mike", "Priya")
 - Email: use a realistic fake email (e.g. "sarah.jones82@gmail.com")
 - Order/transaction ID: use a realistic alphanumeric ID (e.g. "ORD-29481", "#TXN-8834")
@@ -285,6 +404,18 @@ If the brief includes an agent_error_plan:
 - Messages alternate strictly: customer, agent, customer, agent, ...
 - Hit the target_message_count from the brief (+-1 message is acceptable).
 - Match the target_outcome exactly.
+
+### SELF-CHECK BEFORE SUBMITTING
+Read through all customer messages in sequence and ask:
+1. Do they all start the same way (all lowercase / all capitalized)? → FIX: vary it.
+2. Are they all roughly the same length? → FIX: add a short reply and vary lengths.
+3. Do they all have the same punctuation pattern? → FIX: mix punctuated and unpunctuated.
+4. Do any customer messages end with a period? → FIX: remove it. No exceptions.
+5. Are they all grammatically perfect? → FIX: add natural imperfections to some.
+6. Could you tell which messages the customer was frustrated vs calm just from the FORMATTING \
+(not the words)? If yes, good. If every message looks the same regardless of emotion → FIX.
+7. Does any message use "..." more than once? → FIX: remove excess ellipses.
+8. Do more than 2 messages in the conversation contain "..."? → FIX: reduce.
 """
 
 VALIDATE_CHAT_SYSTEM_TEMPLATE = """\
@@ -316,10 +447,11 @@ Validate the conversation against the structured context, scenario brief, and sc
 4. Case type outcome matches: resolved/escalated/unresolved.
 
 ### Topic/Domain Match (is_valid = False if fail)
-5. The conversation's main topic MUST match the Domain. If Domain is payment_issues, technical_errors, \
-account_access, or tariff_questions, the customer's primary request must NOT be "cancel my subscription" \
-or "I want to unsubscribe". Only when Domain is refunds may the main topic be cancellation/refund. \
-If the chat is mainly about canceling subscription but Domain is not refunds, set is_valid=False.
+5. The conversation's main topic MUST match the Domain. If Domain is payment_issues, \
+technical_errors, account_access, or tariff_questions, the customer's primary request \
+must NOT be "cancel my subscription" or "I want to unsubscribe". Only when Domain is \
+refunds may the main topic be cancellation/refund. If the chat is mainly about canceling \
+subscription but Domain is not refunds, set is_valid=False.
 
 ### Entity Accuracy (entity_accuracy)
 6. All product names, plan names, features, error codes, and departments mentioned in the \
@@ -328,40 +460,46 @@ conversation exist in the valid_entities list.
 
 ### Realistic Fake PII (pii_placeholders_used)
 8. Customer personal data uses realistic fictional names, emails, and IDs — NOT placeholder \
-patterns like [CUSTOMER_NAME], [CUSTOMER_EMAIL], or any bracketed/curly-braced placeholder tokens.
-9. All names, emails, order IDs, and other personal data look realistic and natural in the conversation.
+patterns like [CUSTOMER_NAME], [CUSTOMER_EMAIL], or any bracketed/curly-braced tokens.
+9. All names, emails, order IDs, and other personal data look realistic and natural.
 
-### Persona Match (persona_match)
-9. Customer's communication style matches the brief's communication_style description.
-10. Message length and vocabulary are consistent with the persona.
-11. Customer messages NEVER end with a period/dot — if any do, set persona_match=False.
-12. Customer messages are NEVER entirely in ALL CAPS — caps are only for emphasis on individual \
-words or short phrases. If any full message is all caps, set persona_match=False.
-13. Customer messages should NOT all be perfectly grammatical and well-structured — if they \
-read like polished writing rather than real chat typing, set persona_match=False.
+### Persona & Naturalness (persona_match) — CRITICAL
+10. Customer messages NEVER end with a period/dot — no exceptions. If any customer message \
+ends with a period, set persona_match=False and flag it for correction.
+11. Customer messages are NEVER entirely in ALL CAPS — caps are only for emphasis on 1-3 \
+words. If any full message is all caps, set persona_match=False.
+12. **Capitalization variety**: Customer messages must NOT all start the same way. If every \
+single customer message starts with a lowercase letter, OR every single one starts \
+capitalized, set persona_match=False. There must be visible variation.
+13. **Length variety**: There must be at least one very short customer message (≤5 words) \
+and at least one longer message (15+ words). If all messages are similar length, \
+set persona_match=False.
+14. **Punctuation variety**: Customer messages must NOT all follow the same punctuation \
+pattern (e.g., all missing punctuation, or all properly punctuated). There should be \
+visible variation across messages. If punctuation is uniform, set persona_match=False.
+15. **Imperfections present**: At least some customer messages (30-50%) should contain \
+natural imperfections: typos, missing apostrophes, missing commas, incomplete sentences, \
+abbreviations. If all customer messages are grammatically perfect and properly spelled, \
+set persona_match=False.
+16. **Style shifts with emotion**: The customer's typing style should visibly change with \
+their emotional state — shorter/more terse when annoyed, longer when explaining, \
+more emphatic when frustrated. If the formatting is identical regardless of emotional \
+content, set persona_match=False.
+17. **Ellipsis check**: If "..." appears in more than 2 customer messages, \
+set persona_match=False. Ellipsis should be rare, not a pattern.
+18. **No filler sounds**: Customer messages must not contain non-word interjections \
+("ugh", "hm", "uh-huh", "um", "ah", "eh"). If present, set persona_match=False.
+19. Customer's overall communication style matches the brief's communication_style \
+description in terms of personality and tendencies (not mechanical formatting).
 
 ### Emotional Arc (emotional_arc_match)
-14. Customer's emotional progression matches the brief's emotional_arc.
-15. If hidden_dissatisfaction: customer ends with polite/neutral tone despite unresolved issue.
+20. Customer's emotional progression matches the brief's emotional_arc.
+21. If hidden_dissatisfaction: customer ends with polite/neutral tone despite unresolved issue.
 
 ### Agent Errors (agent_errors_as_planned)
-16. If error plan is non-empty: each planned error appears in the conversation.
-17. If error plan is empty: agent is professional and accurate throughout.
-18. Errors feel natural, not forced.
-10. Customer's communication style matches the assigned persona.
-11. Message length and vocabulary are consistent with the persona.
-12. Customer messages feel like real human typing — they should contain imperfections \
-(typos, missing punctuation, incomplete sentences, vague descriptions, abbreviations). \
-If customer messages are all perfectly structured and grammatically correct, set persona_match=False.
-
-### Emotional Arc (emotional_arc_match)
-13. Customer's emotional progression matches the brief's emotional_arc.
-14. If hidden_dissatisfaction: customer ends with polite/neutral tone despite unresolved issue.
-
-### Agent Errors (agent_errors_as_planned)
-15. If error plan is non-empty: each planned error appears in the conversation.
-16. If error plan is empty: agent is professional and accurate throughout.
-17. Errors feel natural, not forced.
+22. If error plan is non-empty: each planned error appears in the conversation.
+23. If error plan is empty: agent is professional and accurate throughout.
+24. Errors feel natural, not forced.
 
 ### Overall
 - Set is_valid=True only if structural checks pass AND no critical issues in other checks.
