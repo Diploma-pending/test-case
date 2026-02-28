@@ -161,7 +161,7 @@ def _validate_conversation(
     scenario: ChatScenario,
     domain_label: str,
     llm,
-) -> ChatValidationResult:
+) -> ChatValidationResult | None:
     """Step 4: Validate the conversation against all inputs."""
     prompt = ChatPromptTemplate.from_messages([
         ("system", VALIDATE_CHAT_SYSTEM_TEMPLATE),
@@ -269,6 +269,10 @@ def generate_single_chat(
             validation = _validate_conversation(
                 structured_context, brief, chat, scenario, domain_label, llm,
             )
+
+            if validation is None:
+                logger.warning("[%s] Validation returned None (attempt %d)", chat_id, attempt + 1)
+                continue
 
             if validation.is_valid:
                 elapsed = time.perf_counter() - t_start
