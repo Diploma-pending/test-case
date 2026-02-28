@@ -328,7 +328,7 @@ conversation exist in the valid_entities list.
 
 ### Realistic Fake PII (pii_placeholders_used)
 8. Customer personal data uses realistic fictional names, emails, and IDs — NOT placeholder \
-patterns like [CUSTOMER_NAME], [CUSTOMER_EMAIL], {{name}}, {name}, or any bracketed/curly-braced tokens.
+patterns like [CUSTOMER_NAME], [CUSTOMER_EMAIL], or any bracketed/curly-braced placeholder tokens.
 9. All names, emails, order IDs, and other personal data look realistic and natural in the conversation.
 
 ### Persona Match (persona_match)
